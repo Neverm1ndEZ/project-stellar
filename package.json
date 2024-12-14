@@ -1,0 +1,12 @@
+{
+  "name": "ammamas-kitchen",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspaces foreach -pi run dev",
+    "build": "yarn workspaces foreach -pi run build"
+  }
+}

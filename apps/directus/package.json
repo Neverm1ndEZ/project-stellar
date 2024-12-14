@@ -1,0 +1,13 @@
+{
+    "name": "@ammamas-kitchen/directus",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+      "dev": "directus start",
+      "build": "echo 'No build step for Directus'"
+    },
+    "dependencies": {
+      "directus": "^10.0.0",
+      "pg": "^8.11.0"
+    }
+  }
