@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  ecom-db:
+    image: postgres
+    restart: always
+    volumes:
+      -  postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_DB=ammamasDB
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev
+volumes:
+  postgres_data:
