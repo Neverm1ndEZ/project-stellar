@@ -168,17 +168,17 @@ export default function Navbar() {
                     href="/login"
                     className="flex w-full items-center text-red-800 hover:text-red-600"
                   >
-                    Login
+                    Sign In
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+                {/* <DropdownMenuItem asChild>
                   <Link
                     href="/register"
                     className="flex w-full items-center text-red-800 hover:text-red-600"
                   >
                     Register
                   </Link>
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

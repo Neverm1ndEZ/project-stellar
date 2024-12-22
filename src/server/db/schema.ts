@@ -7,38 +7,21 @@ import {
   text,
   timestamp,
   varchar,
+  numeric,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
 /**
- * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
- * database instance for multiple projects.
- *
+ * Multi-project schema setup for Drizzle ORM
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = pgTableCreator((name) => `project_${name}`);
+export const createTable = pgTableCreator((name) => `ecommerce_${name}`);
 
-export const posts = createTable(
-  "post",
-  {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    name: varchar("name", { length: 256 }),
-    createdById: varchar("created_by", { length: 255 })
-      .notNull()
-      .references(() => users.id),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
-      () => new Date()
-    ),
-  },
-  (example) => ({
-    createdByIdIdx: index("created_by_idx").on(example.createdById),
-    nameIndex: index("name_idx").on(example.name),
-  })
-);
+// User role type for better type safety
+export type UserRole = "ADMIN" | "CUSTOMER";
 
+// NextAuth Tables
 export const users = createTable("user", {
   id: varchar("id", { length: 255 })
     .notNull()
@@ -46,30 +29,24 @@ export const users = createTable("user", {
     .$defaultFn(() => crypto.randomUUID()),
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 255 }).notNull(),
-  emailVerified: timestamp("email_verified", {
+  emailVerified: timestamp("emailVerified", {
     mode: "date",
-    withTimezone: true,
-  }).default(sql`CURRENT_TIMESTAMP`),
+  }),
   image: varchar("image", { length: 255 }),
+  role: varchar("role", { length: 50 }).$type<UserRole>().default("CUSTOMER").notNull(),
 });
-
-export const usersRelations = relations(users, ({ many }) => ({
-  accounts: many(accounts),
-}));
 
 export const accounts = createTable(
   "account",
   {
-    userId: varchar("user_id", { length: 255 })
+    userId: varchar("userId", { length: 255 })
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: "cascade" }),
     type: varchar("type", { length: 255 })
       .$type<AdapterAccount["type"]>()
       .notNull(),
     provider: varchar("provider", { length: 255 }).notNull(),
-    providerAccountId: varchar("provider_account_id", {
-      length: 255,
-    }).notNull(),
+    providerAccountId: varchar("providerAccountId", { length: 255 }).notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
@@ -82,48 +59,196 @@ export const accounts = createTable(
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-    userIdIdx: index("account_user_id_idx").on(account.userId),
+    userIdIdx: index("account_userId_idx").on(account.userId),
   })
 );
-
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  user: one(users, { fields: [accounts.userId], references: [users.id] }),
-}));
 
 export const sessions = createTable(
   "session",
   {
-    sessionToken: varchar("session_token", { length: 255 })
+    sessionToken: varchar("sessionToken", { length: 255 })
       .notNull()
       .primaryKey(),
-    userId: varchar("user_id", { length: 255 })
+    userId: varchar("userId", { length: 255 })
       .notNull()
-      .references(() => users.id),
-    expires: timestamp("expires", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
+      .references(() => users.id, { onDelete: "cascade" }),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (session) => ({
-    userIdIdx: index("session_user_id_idx").on(session.userId),
+    userIdIdx: index("session_userId_idx").on(session.userId),
   })
 );
 
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, { fields: [sessions.userId], references: [users.id] }),
-}));
-
 export const verificationTokens = createTable(
-  "verification_token",
+  "verificationToken",
   {
     identifier: varchar("identifier", { length: 255 }).notNull(),
     token: varchar("token", { length: 255 }).notNull(),
-    expires: timestamp("expires", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
+
+// E-commerce Tables
+export const categories = createTable("category", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  parentId: varchar("parentId", { length: 255 }).references(() => categories.id),
+  createdAt: timestamp("createdAt", { mode: "date" })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const products = createTable("product", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  stock: integer("stock").default(0).notNull(),
+  sku: varchar("sku", { length: 100 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("createdAt", { mode: "date" })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const productVariants = createTable("productVariant", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: varchar("productId", { length: 255 })
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  stock: integer("stock").default(0).notNull(),
+  sku: varchar("sku", { length: 100 }).notNull(),
+  active: boolean("active").default(true).notNull(),
+});
+
+export const productCategories = createTable("productCategory", {
+  productId: varchar("productId", { length: 255 })
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  categoryId: varchar("categoryId", { length: 255 })
+    .notNull()
+    .references(() => categories.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.productId, t.categoryId] }),
+}));
+
+export const productImages = createTable("productImage", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  productId: varchar("productId", { length: 255 })
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  url: varchar("url", { length: 1024 }).notNull(),
+  altText: varchar("altText", { length: 255 }),
+  isPrimary: boolean("isPrimary").default(false).notNull(),
+});
+
+export const addresses = createTable("address", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("userId", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).$type<"billing" | "shipping">().notNull(),
+  fullName: varchar("fullName", { length: 255 }).notNull(),
+  line1: varchar("line1", { length: 255 }).notNull(),
+  line2: varchar("line2", { length: 255 }),
+  city: varchar("city", { length: 100 }).notNull(),
+  state: varchar("state", { length: 100 }),
+  postalCode: varchar("postalCode", { length: 20 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+});
+
+export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export const orders = createTable("order", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("userId", { length: 255 })
+    .notNull()
+    .references(() => users.id),
+  status: varchar("status", { length: 50 }).$type<OrderStatus>().default("pending").notNull(),
+  addressId: varchar("addressId", { length: 255 })
+    .notNull()
+    .references(() => addresses.id),
+  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }).notNull(),
+  paymentIntentId: varchar("paymentIntentId", { length: 255 }),
+  paymentStatus: varchar("paymentStatus", { length: 50 }).$type<PaymentStatus>().default("pending"),
+  createdAt: timestamp("createdAt", { mode: "date" })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const orderItems = createTable("orderItem", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  orderId: varchar("orderId", { length: 255 })
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  productId: varchar("productId", { length: 255 })
+    .notNull()
+    .references(() => products.id),
+  variantId: varchar("variantId", { length: 255 }).references(() => productVariants.id),
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: numeric("unitPrice", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  accounts: many(accounts),
+  sessions: many(sessions),
+  addresses: many(addresses),
+  orders: many(orders),
+}));
+
+export const productsRelations = relations(products, ({ many }) => ({
+  variants: many(productVariants),
+  categories: many(productCategories),
+  images: many(productImages),
+  orderItems: many(orderItems),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  parent: one(categories, {
+    fields: [categories.parentId],
+    references: [categories.id],
+  }),
+  products: many(productCategories),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  user: one(users, { fields: [orders.userId], references: [users.id] }),
+  address: one(addresses, { fields: [orders.addressId], references: [addresses.id] }),
+  items: many(orderItems),
+}));

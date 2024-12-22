@@ -22,7 +22,7 @@ export default function RootLayout({
       className={`${GeistSans.variable}`}
       suppressHydrationWarning
     >
-      <body>
+      <body className="bg-[#242424]">
         <TRPCReactProvider>
           <Navbar />
           <main className="min-h-screen">{children}</main>
