@@ -71,8 +71,11 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { api } from "@/trpc/server";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const products = await api.product.getAll();
+  console.log(products, "products");
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
