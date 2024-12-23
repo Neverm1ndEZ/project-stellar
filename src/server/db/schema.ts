@@ -1,89 +1,66 @@
-import { relations, sql } from "drizzle-orm";
 import {
-  index,
-  integer,
-  pgTableCreator,
-  primaryKey,
-  text,
   timestamp,
+  pgTable,
+  text,
+  primaryKey,
+  integer,
+  decimal,
   varchar,
-  numeric,
-  boolean,
+  pgEnum,
 } from "drizzle-orm/pg-core";
-import { type AdapterAccount } from "next-auth/adapters";
+import type { AdapterAccount } from "@auth/core/adapters";
 
-/**
- * Multi-project schema setup for Drizzle ORM
- * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
- */
-export const createTable = pgTableCreator((name) => `ecommerce_${name}`);
-
-// User role type for better type safety
-export type UserRole = "ADMIN" | "CUSTOMER";
-
-// NextAuth Tables
-export const users = createTable("user", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: varchar("name", { length: 255 }),
-  email: varchar("email", { length: 255 }).notNull(),
-  emailVerified: timestamp("emailVerified", {
-    mode: "date",
-  }),
-  image: varchar("image", { length: 255 }),
-  role: varchar("role", { length: 50 }).$type<UserRole>().default("CUSTOMER").notNull(),
+export const users = pgTable("user", {
+  id: text("id").notNull().primaryKey(),
+  name: text("name"),
+  email: text("email").notNull(),
+  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  image: text("image"),
+  password: text("password"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  phoneNumber: text("phone_number"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const accounts = createTable(
+export const accounts = pgTable(
   "account",
   {
-    userId: varchar("userId", { length: 255 })
+    userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    type: varchar("type", { length: 255 })
-      .$type<AdapterAccount["type"]>()
-      .notNull(),
-    provider: varchar("provider", { length: 255 }).notNull(),
-    providerAccountId: varchar("providerAccountId", { length: 255 }).notNull(),
+    type: text("type").$type<AdapterAccount["type"]>().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
-    token_type: varchar("token_type", { length: 255 }),
-    scope: varchar("scope", { length: 255 }),
+    token_type: text("token_type"),
+    scope: text("scope"),
     id_token: text("id_token"),
-    session_state: varchar("session_state", { length: 255 }),
+    session_state: text("session_state"),
   },
   (account) => ({
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-    userIdIdx: index("account_userId_idx").on(account.userId),
   })
 );
 
-export const sessions = createTable(
-  "session",
-  {
-    sessionToken: varchar("sessionToken", { length: 255 })
-      .notNull()
-      .primaryKey(),
-    userId: varchar("userId", { length: 255 })
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    expires: timestamp("expires", { mode: "date" }).notNull(),
-  },
-  (session) => ({
-    userIdIdx: index("session_userId_idx").on(session.userId),
-  })
-);
+export const sessions = pgTable("session", {
+  sessionToken: text("sessionToken").notNull().primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+});
 
-export const verificationTokens = createTable(
+export const verificationTokens = pgTable(
   "verificationToken",
   {
-    identifier: varchar("identifier", { length: 255 }).notNull(),
-    token: varchar("token", { length: 255 }).notNull(),
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (vt) => ({
@@ -91,164 +68,243 @@ export const verificationTokens = createTable(
   })
 );
 
-// E-commerce Tables
-export const categories = createTable("category", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: varchar("name", { length: 255 }).notNull(),
+export const addresses = pgTable("address", {
+  id: integer("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  addressLineOne: text("address_line_one").notNull(),
+  addressLineTwo: text("address_line_two"),
+  city: text("city").notNull(),
+  state: text("state"),
+  country: text("country").notNull(),
+  postalCode: text("postal_code").notNull(),
+  type: text("type"),
+  longitude: decimal("longitude").notNull(),
+  latitude: decimal("latitude").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const brands = pgTable("brand", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
   description: text("description"),
-  parentId: varchar("parentId", { length: 255 }).references(() => categories.id),
-  createdAt: timestamp("createdAt", { mode: "date" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const products = createTable("product", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: varchar("name", { length: 255 }).notNull(),
+export const categories = pgTable("category", {
+  id: integer("id").primaryKey(),
+  // parentId: integer("parent_id").references(() => categories.id),
+  name: text("name").notNull(),
   description: text("description"),
-  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
-  stock: integer("stock").default(0).notNull(),
-  sku: varchar("sku", { length: 100 }).notNull(),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("createdAt", { mode: "date" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt", { mode: "date" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const productVariants = createTable("productVariant", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  productId: varchar("productId", { length: 255 })
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  name: varchar("name", { length: 255 }).notNull(),
-  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
-  stock: integer("stock").default(0).notNull(),
-  sku: varchar("sku", { length: 100 }).notNull(),
-  active: boolean("active").default(true).notNull(),
+export const products = pgTable("product", {
+  id: integer("id").primaryKey(),
+  brandId: integer("brand_id").references(() => brands.id),
+  name: text("name").notNull(),
+  shortDesc: text("short_desc").notNull(),
+  longDesc: text("long_desc").notNull(),
+  originalPrice: integer("original_price").notNull(),
+  sellingPrice: integer("selling_price").notNull(),
+  sku: varchar("sku", { length: 50 }).notNull(),
+  availableQuantity: integer("available_quantity").notNull(),
+  featureImage: text("feature_image").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const productCategories = createTable("productCategory", {
-  productId: varchar("productId", { length: 255 })
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  categoryId: varchar("categoryId", { length: 255 })
-    .notNull()
-    .references(() => categories.id, { onDelete: "cascade" }),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.productId, t.categoryId] }),
-}));
+export const productCategories = pgTable(
+  "product_category",
+  {
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id),
+    categoryId: integer("category_id")
+      .notNull()
+      .references(() => categories.id),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.productId, t.categoryId] }),
+  })
+);
 
-export const productImages = createTable("productImage", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  productId: varchar("productId", { length: 255 })
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  url: varchar("url", { length: 1024 }).notNull(),
-  altText: varchar("altText", { length: 255 }),
-  isPrimary: boolean("isPrimary").default(false).notNull(),
-});
-
-export const addresses = createTable("address", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  userId: varchar("userId", { length: 255 })
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  type: varchar("type", { length: 50 }).$type<"billing" | "shipping">().notNull(),
-  fullName: varchar("fullName", { length: 255 }).notNull(),
-  line1: varchar("line1", { length: 255 }).notNull(),
-  line2: varchar("line2", { length: 255 }),
-  city: varchar("city", { length: 100 }).notNull(),
-  state: varchar("state", { length: 100 }),
-  postalCode: varchar("postalCode", { length: 20 }).notNull(),
-  country: varchar("country", { length: 100 }).notNull(),
-  phone: varchar("phone", { length: 20 }),
-});
-
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
-export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
-
-export const orders = createTable("order", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  userId: varchar("userId", { length: 255 })
-    .notNull()
-    .references(() => users.id),
-  status: varchar("status", { length: 50 }).$type<OrderStatus>().default("pending").notNull(),
-  addressId: varchar("addressId", { length: 255 })
-    .notNull()
-    .references(() => addresses.id),
-  totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }).notNull(),
-  paymentIntentId: varchar("paymentIntentId", { length: 255 }),
-  paymentStatus: varchar("paymentStatus", { length: 50 }).$type<PaymentStatus>().default("pending"),
-  createdAt: timestamp("createdAt", { mode: "date" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: timestamp("updatedAt", { mode: "date" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-});
-
-export const orderItems = createTable("orderItem", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  orderId: varchar("orderId", { length: 255 })
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  productId: varchar("productId", { length: 255 })
+export const productImages = pgTable("product_image", {
+  id: integer("id").primaryKey(),
+  productId: integer("product_id")
     .notNull()
     .references(() => products.id),
-  variantId: varchar("variantId", { length: 255 }).references(() => productVariants.id),
-  quantity: integer("quantity").default(1).notNull(),
-  unitPrice: numeric("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  url: text("url").notNull(),
+  altText: text("alt_text").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  accounts: many(accounts),
-  sessions: many(sessions),
-  addresses: many(addresses),
-  orders: many(orders),
-}));
+export const productVariants = pgTable("product_variant", {
+  id: integer("id").primaryKey(),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id),
+  variantName: text("variant_name").notNull(),
+  variantValue: text("variant_value").notNull(),
+  additionalPrice: integer("additional_price"),
+  availableQuantity: integer("available_quantity").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-export const productsRelations = relations(products, ({ many }) => ({
-  variants: many(productVariants),
-  categories: many(productCategories),
-  images: many(productImages),
-  orderItems: many(orderItems),
-}));
+export const reviews = pgTable("review", {
+  id: integer("id").primaryKey(),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  rating: integer("rating"),
+  title: text("title").notNull(),
+  detailedReview: text("detailed_review"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
-  parent: one(categories, {
-    fields: [categories.parentId],
-    references: [categories.id],
-  }),
-  products: many(productCategories),
-}));
+export const carts = pgTable("cart", {
+  id: integer("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-export const ordersRelations = relations(orders, ({ one, many }) => ({
-  user: one(users, { fields: [orders.userId], references: [users.id] }),
-  address: one(addresses, { fields: [orders.addressId], references: [addresses.id] }),
-  items: many(orderItems),
-}));
+export const cartItems = pgTable("cart_item", {
+  id: integer("id").primaryKey(),
+  cartId: integer("cart_id")
+    .notNull()
+    .references(() => carts.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  quantity: integer("quantity").notNull(),
+  price: integer("price").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const orderStatus = pgEnum("order_status", [
+  "PENDING",
+  "PAID",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+]);
+
+export const orders = pgTable("order", {
+  id: integer("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  status: orderStatus("status"),
+  shippingAddressId: integer("shipping_address_id")
+    .notNull()
+    .references(() => addresses.id),
+  billingAddressId: integer("billing_address_id").references(() => addresses.id),
+  totalPrice: integer("total_price").notNull(),
+  totalTaxes: integer("total_taxes"),
+  billAmount: integer("bill_amount").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const orderItems = pgTable("order_item", {
+  id: integer("id").primaryKey(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => products.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  quantity: integer("quantity").notNull(),
+  price: integer("price").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const payments = pgTable("payment", {
+  id: integer("id").primaryKey(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id),
+  paymentMethod: text("payment_method").notNull(),
+  paymentStatus: text("payment_status").notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const shippingMethods = pgTable("shipping_method", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+  cost: integer("cost").notNull(),
+  description: text("description"),
+});
+
+export const orderShipments = pgTable("order_shipment", {
+  id: integer("id").primaryKey(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id),
+  shippingMethodId: integer("shipping_method_id")
+    .notNull()
+    .references(() => shippingMethods.id),
+  shippedDate: timestamp("shipped_date"),
+  deliveredDate: timestamp("delivered_date"),
+  trackingNumber: text("tracking_number"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const promoCodes = pgTable("promo_code", {
+  id: integer("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  discountPercentage: integer("discount_percentage").notNull(),
+  validFrom: timestamp("valid_from").notNull(),
+  validTo: timestamp("valid_to").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const usedPromoCodes = pgTable("used_promo_code", {
+  id: integer("id").primaryKey(),
+  promoCodeId: integer("promo_code_id")
+    .notNull()
+    .references(() => promoCodes.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  usedAt: timestamp("used_at").notNull(),
+});
+
+export const roles = pgTable("role", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
+export const userRoles = pgTable(
+  "user_role",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    roleId: integer("role_id")
+      .notNull()
+      .references(() => roles.id),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.roleId] }),
+  })
+);
