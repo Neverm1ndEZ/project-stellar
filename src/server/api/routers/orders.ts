@@ -101,4 +101,42 @@ export const postRouter = createTRPCRouter({
         });
       }
     }),
+
+  updateOrderStatus: protectedProcedure
+    .input(
+      z.object({
+        orderId: z.number().positive(),
+        status: z.enum(["PENDING", "SHIPPED", "DELIVERED"]),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const order = await db.query.orders.findFirst({
+          where: eq(orders.id, input.orderId),
+        });
+
+        if (!order) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Order not found",
+          });
+        }
+
+        await db
+          .update(orders)
+          .set({
+            status: input.status,
+          })
+          .where(eq(orders.id, input.orderId));
+
+        return order;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to update order status",
+          cause: error,
+        });
+      }
+    }),
 });
