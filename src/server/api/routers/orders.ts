@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-  createTRPCRouter,
-  protectedProcedure,
-  //   publicProcedure,
-} from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -51,7 +47,7 @@ export const postRouter = createTRPCRouter({
       }
     }),
 
-    createOrder: protectedProcedure
+  createOrder: protectedProcedure
     .input(
       z.object({
         products: z.array(
@@ -71,12 +67,21 @@ export const postRouter = createTRPCRouter({
       try {
         // Take the first product's addresses (assuming all products go to same address)
         const firstProduct = input.products[0];
-        
+
         // Calculate totals from all products
-        const totalPrice = input.products.reduce((sum, p) => sum + p.totalPrice, 0);
-        const totalTaxes = input.products.reduce((sum, p) => sum + p.totalTaxes, 0);
-        const billAmount = input.products.reduce((sum, p) => sum + p.billAmount, 0);
-  
+        const totalPrice = input.products.reduce(
+          (sum, p) => sum + p.totalPrice,
+          0,
+        );
+        const totalTaxes = input.products.reduce(
+          (sum, p) => sum + p.totalTaxes,
+          0,
+        );
+        const billAmount = input.products.reduce(
+          (sum, p) => sum + p.billAmount,
+          0,
+        );
+
         const order = await db.insert(orders).values({
           userId: ctx.session.user.id,
           status: "PENDING",
@@ -86,7 +91,7 @@ export const postRouter = createTRPCRouter({
           totalTaxes,
           billAmount,
         });
-  
+
         return order;
       } catch (error) {
         throw new TRPCError({
