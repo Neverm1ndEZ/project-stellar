@@ -171,81 +171,161 @@ export const postRouter = createTRPCRouter({
   // cart related operations
 
   addToCart: protectedProcedure
-  .input(
-    z.object({
-      productId: z.number().positive(),
-      quantity: z.number().positive(),
-    }),
-  )
-  .mutation(async ({ input, ctx }) => {
-    try {
-      // First check if product exists
-      const product = await db.query.products.findFirst({
-        where: eq(products.id, input.productId),
-      });
+    .input(
+      z.object({
+        productId: z.number().positive(),
+        quantity: z.number().positive(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // First check if product exists
+        const product = await db.query.products.findFirst({
+          where: eq(products.id, input.productId),
+        });
 
-      if (!product) {
+        if (!product) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Product not found",
+          });
+        }
+
+        // Check if user has a cart
+        let userCart = await db.query.carts.findFirst({
+          where: eq(carts.userId, ctx.session.user.id),
+        });
+
+        // If no cart exists, create one
+        if (!userCart) {
+          const newCart = await db
+            .insert(carts)
+            .values({
+              userId: ctx.session.user.id,
+            })
+            .returning();
+          userCart = newCart[0];
+        }
+
+        // Check if item already exists in cart
+        const cartItem = await db.query.cartItems.findFirst({
+          where: and(
+            eq(cartItems.cartId, userCart!.id),
+            eq(cartItems.productId, input.productId),
+          ),
+        });
+
+        if (cartItem) {
+          // Update quantity if item exists
+          await db
+            .update(cartItems)
+            .set({
+              quantity: cartItem.quantity + input.quantity,
+            })
+            .where(
+              and(
+                eq(cartItems.cartId, userCart!.id),
+                eq(cartItems.productId, input.productId),
+              ),
+            );
+        } else {
+          // Add new item if it doesn't exist
+          await db.insert(cartItems).values({
+            cartId: userCart!.id,
+            productId: input.productId,
+            quantity: input.quantity,
+            price: product.sellingPrice,
+          });
+        }
+
+        return product;
+      } catch (error) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Product not found",
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to add to cart",
+          cause: error,
         });
       }
-
-      // Check if user has a cart
-      let userCart = await db.query.carts.findFirst({
-        where: eq(carts.userId, ctx.session.user.id),
-      });
-
-      // If no cart exists, create one
-      if (!userCart) {
-        const newCart = await db.insert(carts)
-          .values({
-            userId: ctx.session.user.id,
-          })
-          .returning();
-        userCart = newCart[0];
-      }
-
-      // Check if item already exists in cart
-      const cartItem = await db.query.cartItems.findFirst({
-        where: and(
-          eq(cartItems.cartId, userCart!.id),
-          eq(cartItems.productId, input.productId),
-        ),
-      });
-
-      if (cartItem) {
-        // Update quantity if item exists
-        await db
-          .update(cartItems)
-          .set({
-            quantity: cartItem.quantity + input.quantity,
-          })
-          .where(
-            and(
-              eq(cartItems.cartId, userCart!.id),
-              eq(cartItems.productId, input.productId),
-            ),
-          );
-      } else {
-        // Add new item if it doesn't exist
-        await db.insert(cartItems).values({
-          cartId: userCart!.id,
-          productId: input.productId,
-          quantity: input.quantity,
-          price: product.sellingPrice,
-        });
-      }
-
-      return product;
-    } catch (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to add to cart",
-        cause: error,
-      });
-    }
     }),
 
-   
+  removeFromCart: protectedProcedure
+    .input(
+      z.object({
+        productId: z.number().positive(),
+        quantity: z.number().positive(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userCart = await db.query.carts.findFirst({
+          where: eq(carts.userId, ctx.session.user.id),
+        });
+
+        if (!userCart) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cart not found",
+          });
+        }
+
+        const cartItem = await db.query.cartItems.findFirst({
+          where: and(
+            eq(cartItems.cartId, userCart.id),
+            eq(cartItems.productId, input.productId),
+          ),
+        });
+
+        if (!cartItem) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Item not found in cart",
+          });
+        }
+
+        const newQuantity = cartItem.quantity - input.quantity;
+
+        if (newQuantity <= 0) {
+          // Remove the item completely
+          await db
+            .delete(cartItems)
+            .where(
+              and(
+                eq(cartItems.cartId, userCart.id),
+                eq(cartItems.productId, input.productId),
+              ),
+            );
+
+          // Check if cart is empty
+          const remainingItems = await db.query.cartItems.findFirst({
+            where: eq(cartItems.cartId, userCart.id),
+          });
+
+          if (!remainingItems) {
+            // Delete the cart if no items left
+            await db.delete(carts).where(eq(carts.id, userCart.id));
+          }
+        } else {
+          // Update with new quantity
+          await db
+            .update(cartItems)
+            .set({
+              quantity: newQuantity,
+            })
+            .where(
+              and(
+                eq(cartItems.cartId, userCart.id),
+                eq(cartItems.productId, input.productId),
+              ),
+            );
+        }
+
+        return { success: true };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to remove from cart",
+          cause: error,
+        });
+      }
+    }),
 });
