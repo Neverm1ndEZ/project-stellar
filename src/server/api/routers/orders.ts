@@ -139,4 +139,33 @@ export const postRouter = createTRPCRouter({
         });
       }
     }),
+
+    deleteOrderById: protectedProcedure
+    .input(z.number().positive())
+    .mutation(async ({ input }) => {
+        try {
+            const order = await db.query.orders.findFirst({
+            where: eq(orders.id, input),
+            });
+    
+            if (!order) {
+            throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Order not found",
+            });
+            }
+    
+            await db.delete(orders).where(eq(orders.id, input));
+    
+            return order;
+        } catch (error) {
+            if (error instanceof TRPCError) throw error;
+            throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to delete order",
+            cause: error,
+            });
+        }
+        }),
+    
 });
