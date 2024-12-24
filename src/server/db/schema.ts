@@ -172,7 +172,7 @@ export const reviews = pgTable("review", {
 });
 
 export const carts = pgTable("cart", {
-  id: integer("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id),
@@ -181,7 +181,7 @@ export const carts = pgTable("cart", {
 });
 
 export const cartItems = pgTable("cart_item", {
-  id: integer("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   cartId: integer("cart_id")
     .notNull()
     .references(() => carts.id),
