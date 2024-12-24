@@ -204,7 +204,7 @@ export const orderStatus = pgEnum("order_status", [
 ]);
 
 export const orders = pgTable("order", {
-  id: integer("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id),

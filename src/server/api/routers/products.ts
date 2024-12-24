@@ -63,6 +63,75 @@ export const productRouter = createTRPCRouter({
       }
     }),
 
+  
+    getCategoryById: publicProcedure
+    .input(z.number().positive())
+    .query(async ({ input }) => {
+      try {
+        const category = await db.query.categories.findFirst({
+          where: eq(categories.id, input),
+        });
+
+        if (!category) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Category not found",
+          });
+        }
+
+        return category;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch category",
+          cause: error,
+        });
+      }
+    }),
+
+    getAllCategories: publicProcedure.query(async () => {
+      try {
+        return await db.query.categories.findMany();
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch categories",
+          cause: error,
+        });
+      }
+    }),
+
+    getProductByCategory: publicProcedure
+    .input(z.number().positive())
+    .query(async ({ input }) => {
+      try {
+        const category = await db.query.categories.findFirst({
+          where: eq(categories.id, input),
+        });
+
+        if (!category) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Category not found",
+          });
+        }
+
+        return await db.query.products.findMany({
+          where: eq(products.categoryId, input),
+        });
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch products by category",
+          cause: error,
+        });
+      }
+    }),
+
+
+
   createProduct: protectedProcedure
     .input(productSchema)
     .mutation(async ({ input }) => {
