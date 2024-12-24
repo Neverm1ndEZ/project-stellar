@@ -74,8 +74,13 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { api } from "@/trpc/server";
 
 export default async function HomePage() {
-  const products = await api.product.getAll();
+  const products = await api.product.getAllProducts();
+  const indiProd = await api.product.getProductById(1)
+  const electronicProducts = await api.product.getProductByCategory(1);
   console.log(products, "products");
+  console.log(indiProd, "indi prod");
+  console.log(electronicProducts, "electronicProducts");
+  
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}

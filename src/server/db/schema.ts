@@ -7,7 +7,7 @@ import {
   decimal,
   varchar,
   pgEnum,
-} from "drizzle-orm/pg-core";
+  } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "@auth/core/adapters";
 
 export const users = pgTable("user", {
@@ -93,7 +93,7 @@ export const brands = pgTable("brand", {
 });
 
 export const categories = pgTable("category", {
-  id: integer("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   // parentId: integer("parent_id").references(() => categories.id),
   name: text("name").notNull(),
   description: text("description"),
@@ -102,8 +102,9 @@ export const categories = pgTable("category", {
 });
 
 export const products = pgTable("product", {
-  id: integer("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   brandId: integer("brand_id").references(() => brands.id),
+  categoryId: integer("category_id").references(() => categories.id),
   name: text("name").notNull(),
   shortDesc: text("short_desc").notNull(),
   longDesc: text("long_desc").notNull(),
