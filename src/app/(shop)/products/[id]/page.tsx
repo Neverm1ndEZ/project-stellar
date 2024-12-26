@@ -1,8 +1,17 @@
 // app/(shop)/products/[id]/page.tsx
 import { Suspense, use } from "react";
-import { ProductDetail } from "@/components/products/ProductDetail";
-import { getProduct } from "@/hooks/product";
+import { ProductDetail } from "@/app/(shop)/products/_components/ProductDetail";
+import { api } from "@/trpc/server";
+import { notFound } from "next/navigation";
 
+// In Next.js 15, params are properly typed by the framework
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+// Loading state component remains the same for consistency
 function LoadingState() {
   return (
     <div className="container py-8">
@@ -20,25 +29,52 @@ function LoadingState() {
   );
 }
 
-export default function ProductDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  return (
-    <Suspense fallback={<LoadingState />}>
-      <ProductDetailPageContent params={params} />
-    </Suspense>
-  );
+// Metadata generation using Next.js 15's more robust types
+export async function generateMetadata({ params }: PageProps) {
+  const productId = Number(params.id);
+  try {
+    const product = await api.product.getProductById(productId);
+
+    return {
+      title: product.name,
+      description: product.shortDesc,
+      openGraph: {
+        title: product.name,
+        description: product.shortDesc,
+        images: [product.featureImage],
+      },
+    };
+  } catch {
+    return {
+      title: "Product Not Found",
+      description: "The requested product could not be found",
+    };
+  }
 }
 
-function ProductDetailPageContent({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const product = use(getProduct(resolvedParams.id));
+// Main page component with Next.js 15's handling of dynamic segments
+export default async function ProductDetailPage({ params }: PageProps) {
+  // Next.js 15 ensures params.id is always a string, so we can safely convert it
+  const productId = parseInt(params.id);
 
-  return <ProductDetail product={product} />;
+  try {
+    const product = await api.product.getProductById(productId);
+
+    // If the product doesn't exist, show the 404 page
+    if (!product) {
+      notFound();
+    }
+
+    return (
+      <main className="min-h-screen">
+        <Suspense fallback={<LoadingState />}>
+          <ProductDetail product={product} />
+        </Suspense>
+      </main>
+    );
+  } catch (error) {
+    // Log the error for debugging but show a user-friendly 404 page
+    console.error("Failed to fetch product:", error);
+    notFound();
+  }
 }

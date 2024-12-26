@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/card";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity } = useCart();
 
   const subtotal = items.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (total, item) => total + item.price * item.quantity, // price * quantity
     0,
   );
+
   const shipping = subtotal > 500 ? 0 : 50;
   const total = subtotal + shipping;
 
@@ -47,10 +49,12 @@ export default function CartPage() {
           {items.map((item) => (
             <Card key={item.id}>
               <CardContent className="flex items-center p-4">
-                <img
+                <Image
                   src={`https://placeholder.pagebee.io/api/plain/100/100`}
-                  alt={item.name}
+                  alt={"String"}
                   className="h-24 w-24 rounded object-cover"
+                  width={96}
+                  height={96}
                 />
                 <div className="ml-4 flex-grow">
                   <h3 className="font-medium">{item.name}</h3>

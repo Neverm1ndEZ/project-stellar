@@ -7,7 +7,7 @@ import {
   decimal,
   varchar,
   pgEnum,
-  } from "drizzle-orm/pg-core";
+} from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "@auth/core/adapters";
 
 export const users = pgTable("user", {
@@ -45,7 +45,7 @@ export const accounts = pgTable(
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-  })
+  }),
 );
 
 export const sessions = pgTable("session", {
@@ -65,7 +65,7 @@ export const verificationTokens = pgTable(
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
-  })
+  }),
 );
 
 export const addresses = pgTable("address", {
@@ -129,7 +129,7 @@ export const productCategories = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.productId, t.categoryId] }),
-  })
+  }),
 );
 
 export const productImages = pgTable("product_image", {
@@ -212,7 +212,9 @@ export const orders = pgTable("order", {
   shippingAddressId: integer("shipping_address_id")
     .notNull()
     .references(() => addresses.id),
-  billingAddressId: integer("billing_address_id").references(() => addresses.id),
+  billingAddressId: integer("billing_address_id").references(
+    () => addresses.id,
+  ),
   totalPrice: integer("total_price").notNull(),
   totalTaxes: integer("total_taxes"),
   billAmount: integer("bill_amount").notNull(),
@@ -307,5 +309,5 @@ export const userRoles = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.roleId] }),
-  })
+  }),
 );

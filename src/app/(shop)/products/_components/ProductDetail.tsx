@@ -4,34 +4,39 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/store/cart";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type Product, type CartProduct } from "@/types/product";
-import { ReviewsSection } from "./ReviewsSection";
+import Image from "next/image";
+import { type products } from "@/server/db/schema";
+import { EnhancedReviewSection } from "./EnhancedReviewSection";
+
+type Product = typeof products.$inferSelect;
 
 interface ProductDetailProps {
   product: Product;
 }
 
 export function ProductDetail({ product }: ProductDetailProps) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [quantity, setQuantity] = useState(1);
   const addToCart = useCart((state) => state.addItem);
 
   const handleAddToCart = () => {
-    const cartItem: CartProduct = {
-      ...product,
-      size: selectedSize,
+    addToCart({
+      productId: product.id,
       quantity,
-    };
-    addToCart(cartItem);
+      price: product.sellingPrice * quantity,
+      product: {
+        name: product.name,
+        featureImage: product.featureImage,
+        shortDesc: product.shortDesc,
+      },
+    });
   };
+
+  // Calculate savings percentage
+  const savingsPercent = Math.round(
+    ((product.originalPrice - product.sellingPrice) / product.originalPrice) *
+      100,
+  );
 
   return (
     <div className="container py-8">
@@ -39,10 +44,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
         {/* Product Images */}
         <div className="space-y-4">
           <div className="aspect-square overflow-hidden rounded-lg">
-            <img
-              src={product.images[0]}
+            <Image
+              src={"https://placeholder.pagebee.io/api/plain/600/600"}
               alt={product.name}
               className="h-full w-full object-cover"
+              width={600}
+              height={600}
+              priority
             />
           </div>
         </div>
@@ -51,30 +59,29 @@ export function ProductDetail({ product }: ProductDetailProps) {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold">{product.name}</h1>
-            <p className="mt-2 text-gray-600">{product.description}</p>
+            <p className="mt-2 text-gray-600">{product.longDesc}</p>
           </div>
 
-          <div className="text-brand-600 text-2xl font-bold">
-            ₹{product.price}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-brand-600 text-2xl font-bold">
+                ₹{product.sellingPrice}
+              </span>
+              {product.originalPrice > product.sellingPrice && (
+                <>
+                  <span className="text-gray-500 line-through">
+                    ₹{product.originalPrice}
+                  </span>
+                  <span className="text-green-600">
+                    ({savingsPercent}% off)
+                  </span>
+                </>
+              )}
+            </div>
+            <p className="text-sm text-gray-500">SKU: {product.sku}</p>
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Size</label>
-              <Select value={selectedSize} onValueChange={setSelectedSize}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {product.sizes.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium">Quantity</label>
               <div className="flex items-center space-x-2">
@@ -82,6 +89,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   variant="outline"
                   size="icon"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={!product.availableQuantity}
                 >
                   -
                 </Button>
@@ -89,20 +97,30 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() =>
+                    setQuantity(
+                      Math.min(product.availableQuantity ?? 0, quantity + 1),
+                    )
+                  }
+                  disabled={!product.availableQuantity}
                 >
                   +
                 </Button>
               </div>
+              {product.availableQuantity && product.availableQuantity < 10 && (
+                <p className="text-sm text-orange-600">
+                  Only {product.availableQuantity} left in stock!
+                </p>
+              )}
             </div>
 
             <Button
               className="w-full"
               onClick={handleAddToCart}
-              disabled={!product.inStock}
+              disabled={!product.availableQuantity}
             >
-              {product.inStock
-                ? `Add to Cart - ₹${product.price * quantity}`
+              {product.availableQuantity
+                ? `Add to Cart - ₹${product.sellingPrice * quantity}`
                 : "Out of Stock"}
             </Button>
           </div>
@@ -112,25 +130,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <TabsTrigger value="details" className="flex-1">
                 Details
               </TabsTrigger>
-              <TabsTrigger value="ingredients" className="flex-1">
-                Ingredients
-              </TabsTrigger>
               <TabsTrigger value="storage" className="flex-1">
                 Storage
               </TabsTrigger>
             </TabsList>
             <TabsContent value="details" className="space-y-4">
               <div>
-                <h3 className="font-medium">Spice Level</h3>
-                <p className="capitalize text-gray-600">{product.spiceLevel}</p>
+                <h3 className="font-medium">Product Details</h3>
+                <p className="text-gray-600">{product.longDesc}</p>
               </div>
-              <div>
-                <h3 className="font-medium">Shelf Life</h3>
-                <p className="text-gray-600">{product.shelfLife}</p>
-              </div>
-            </TabsContent>
-            <TabsContent value="ingredients">
-              <p className="text-gray-600">{product.ingredients.join(", ")}</p>
             </TabsContent>
             <TabsContent value="storage">
               <div className="space-y-2">
@@ -145,11 +153,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </Tabs>
         </div>
       </div>
-
-      {/* Reviews section */}
-      <div className="border-t pt-12">
-        <h2 className="mb-8 text-2xl font-bold">Customer Reviews</h2>
-        <ReviewsSection product={product} />
+      <div>
+        <EnhancedReviewSection
+          productId={product.id}
+          // currentUserId={getCurrentUserId()}
+          // hasOrderHistory={hasOrderHistory()}
+        />
       </div>
     </div>
   );

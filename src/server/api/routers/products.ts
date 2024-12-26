@@ -49,7 +49,10 @@ export const productRouter = createTRPCRouter({
         });
 
         if (!product) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Product not found",
+          });
         }
 
         return product;
@@ -63,8 +66,7 @@ export const productRouter = createTRPCRouter({
       }
     }),
 
-  
-    getCategoryById: publicProcedure
+  getCategoryById: publicProcedure
     .input(z.number().positive())
     .query(async ({ input }) => {
       try {
@@ -90,19 +92,19 @@ export const productRouter = createTRPCRouter({
       }
     }),
 
-    getAllCategories: publicProcedure.query(async () => {
-      try {
-        return await db.query.categories.findMany();
-      } catch (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch categories",
-          cause: error,
-        });
-      }
-    }),
+  getAllCategories: publicProcedure.query(async () => {
+    try {
+      return await db.query.categories.findMany();
+    } catch (error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch categories",
+        cause: error,
+      });
+    }
+  }),
 
-    getProductByCategory: publicProcedure
+  getProductByCategory: publicProcedure
     .input(z.number().positive())
     .query(async ({ input }) => {
       try {
@@ -129,8 +131,6 @@ export const productRouter = createTRPCRouter({
         });
       }
     }),
-
-
 
   createProduct: protectedProcedure
     .input(productSchema)
