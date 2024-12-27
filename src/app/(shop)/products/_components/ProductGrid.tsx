@@ -100,7 +100,10 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 <Link href={`/products/${product.id}`}>
                   <div className="transition-transform group-hover:scale-[1.02]">
                     <Image
-                      src={"https://placeholder.pagebee.io/api/plain/400/300"}
+                      src={
+                        product.featureImage ||
+                        "https://placeholder.pagebee.io/api/plain/400/300"
+                      }
                       alt={product.name}
                       className="h-48 w-full object-cover"
                       height={192}

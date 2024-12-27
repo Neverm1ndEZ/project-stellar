@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1734979842599,
-      "tag": "0000_fine_wilson_fisk",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1735024614095,
-      "tag": "0001_wooden_kingpin",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1735026775992,
-      "tag": "0002_plain_kulan_gath",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1735035573545,
-      "tag": "0003_cheerful_killer_shrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1735037901154,
-      "tag": "0004_tearful_triton",
+      "when": 1735308191140,
+      "tag": "0000_misty_blue_marvel",
       "breakpoints": true
     }
   ]

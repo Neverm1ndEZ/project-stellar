@@ -16,7 +16,10 @@ export function ProductCard({ product }: ProductCardProps) {
     <Card className="overflow-hidden">
       <Link href={`/products/${product.id}`}>
         <Image
-          src={`https://placeholder.pagebee.io/api/plain/400/300`}
+          src={
+            `${product.featureImage}` ||
+            `https://placeholder.pagebee.io/api/plain/400/300`
+          }
           alt={product.name}
           className="h-48 w-full object-cover"
           width={192}

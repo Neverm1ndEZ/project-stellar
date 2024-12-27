@@ -1,10 +1,12 @@
 // src/app/layout.tsx
+import { CartProvider } from "@/components/global/CartProvider";
+import ClientNavbar from "@/components/global/ClientNavbar";
+import { Toaster } from "@/components/ui/toaster";
 import "@/styles/globals.css";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
-import { TRPCReactProvider } from "@/trpc/react";
-import ClientNavbar from "@/components/global/ClientNavbar";
 import { Providers } from "./providers";
+import { TRPCReactProvider } from "@/trpc/react";
 
 export const metadata: Metadata = {
   title: "Amamma's Kitchen - South Indian Pickles",
@@ -17,18 +19,19 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${GeistSans.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
       <Providers>
-        <TRPCReactProvider>
-          <body>
-            <ClientNavbar />
-            <main className="min-h-screen">{children}</main>
-          </body>
-        </TRPCReactProvider>
+        <body>
+          <ClientNavbar />
+          <main className="min-h-screen">
+            <TRPCReactProvider>
+              <CartProvider>
+                {children}
+                <Toaster />
+              </CartProvider>
+            </TRPCReactProvider>
+          </main>
+        </body>
       </Providers>
     </html>
   );

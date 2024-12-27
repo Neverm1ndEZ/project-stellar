@@ -6,8 +6,10 @@ import Link from "next/link";
 import { ProductCard } from "./_components/ProductCard";
 
 export default async function HomePage() {
-  const featuredProducts = await api.product.getProductByCategory(5);
+  const featuredProducts = await api.product.getAllProducts();
   const categories = await api.product.getAllCategories();
+
+  console.log({ featuredProducts, categories });
 
   return (
     <div className="flex min-h-screen flex-col">

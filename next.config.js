@@ -12,6 +12,10 @@ const config = {
         protocol: "https",
         hostname: "placeholder.pagebee.io",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
   },
 };

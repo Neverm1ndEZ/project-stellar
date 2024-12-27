@@ -3,62 +3,127 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicPaths = ["/", "/products", "/categories"]; // Add all public paths
-const authPaths = ["/login", "/register"];
-const phoneVerificationPath = "/verify-phone";
+// Define route configurations with more specific patterns
+const routeConfig = {
+  // Routes that don't require authentication
+  publicRoutes: [
+    "/",
+    "/products",
+    "/categories",
+    "/bulk-order",
+    "/gifting",
+    "/suggestions",
+    "/about",
+    "/contact",
+    "/api/trpc", // Allow public TRPC routes
+  ],
+
+  // Routes that require authentication but not phone verification
+  authRoutes: ["/verify-phone"],
+
+  // Routes that require both authentication and phone verification
+  protectedRoutes: [
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/orders",
+    "/wishlist",
+    "/addresses",
+    "/payments",
+    "/subscriptions",
+    "/incidents",
+  ],
+
+  // Routes that should redirect authenticated users
+  authPages: ["/login", "/register"],
+
+  // Static assets and API routes to ignore
+  ignoredRoutes: ["/_next", "/favicon.ico", "/api/auth", "/images", "/assets"],
+};
 
 export async function middleware(request: NextRequest) {
+  const { pathname, search, origin } = request.nextUrl;
+
+  // First, check if the route should be ignored
+  if (routeConfig.ignoredRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+
+  // Helper function to check if path matches any patterns
+  const matchesPattern = (patterns: string[]) =>
+    patterns.some(
+      (pattern) => pathname.startsWith(pattern) || pathname === pattern,
+    );
+
+  // Get the token and verify its validity
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  const { pathname } = request.nextUrl;
-  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
-  const isAuthPath = authPaths.some((path) => pathname.startsWith(path));
+  // Store the requested URL for post-login redirect
+  const returnTo = `${pathname}${search}`;
 
-  // Allow public paths without any checks
-  if (isPublicPath) {
+  // Handle public routes
+  if (matchesPattern(routeConfig.publicRoutes)) {
+    // If user is authenticated and tries to access auth pages, redirect to home
+    if (token && matchesPattern(routeConfig.authPages)) {
+      return NextResponse.redirect(new URL("/", origin));
+    }
     return NextResponse.next();
   }
 
-  // Handle authenticated user states
-  if (token) {
-    // Redirect away from auth pages if already logged in
-    if (isAuthPath) {
-      return NextResponse.redirect(new URL("/", request.url));
+  // If user is not authenticated, redirect to login
+  if (!token) {
+    const loginUrl = new URL("/login", origin);
+    if (returnTo !== "/login") {
+      loginUrl.searchParams.set("from", returnTo);
     }
-
-    // Check phone verification status for protected routes
-    if (!token.phoneVerified && pathname !== phoneVerificationPath) {
-      return NextResponse.redirect(new URL("/verify-phone", request.url));
-    }
-
-    // Allow access to protected routes for verified users
-    return NextResponse.next();
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect unauthenticated users to login
-  if (!isAuthPath) {
-    const from = encodeURIComponent(pathname);
-    return NextResponse.redirect(new URL(`/login?from=${from}`, request.url));
+  // Check phone verification status for protected routes
+  // Use the phoneVerified flag from the token instead of just phoneNumber
+  const phoneVerified = token.phoneVerified === true;
+  const isProtectedRoute = matchesPattern(routeConfig.protectedRoutes);
+  const isVerifyPhonePage = pathname === "/verify-phone";
+
+  // Handle protected routes that require phone verification
+  if (isProtectedRoute && !phoneVerified) {
+    // Redirect to phone verification with return URL
+    const verifyUrl = new URL("/verify-phone", origin);
+    verifyUrl.searchParams.set("from", returnTo);
+    return NextResponse.redirect(verifyUrl);
   }
 
-  return NextResponse.next();
+  // Prevent accessing verify-phone page if already verified
+  if (isVerifyPhonePage && phoneVerified) {
+    // Get the intended destination or default to home
+    const destination = search.includes("from=")
+      ? decodeURIComponent(search.split("from=")[1].split("&")[0])
+      : "/";
+    return NextResponse.redirect(new URL(destination, origin));
+  }
+
+  // Add security headers
+  const response = NextResponse.next();
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  return response;
 }
 
+// Configure middleware to run on specific paths
 export const config = {
   matcher: [
     /*
-     * Match all routes under /users/[userId]/*
-     * This includes profile, orders, wishlist, etc.
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - api/auth (NextAuth.js API routes)
      */
-    "/users/:userId/:path*",
-    "/cart/:path*",
-    "/checkout/:path*",
-    "/login",
-    "/register",
-    "/verify-phone",
-    "/api/auth/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
   ],
 };

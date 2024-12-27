@@ -5,7 +5,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "account" (
-	"userId" text NOT NULL,
+	"userId" uuid NOT NULL,
 	"type" text NOT NULL,
 	"provider" text NOT NULL,
 	"providerAccountId" text NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS "account" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "address" (
 	"id" integer PRIMARY KEY NOT NULL,
-	"user_id" text,
+	"user_id" uuid NOT NULL,
 	"address_line_one" text NOT NULL,
 	"address_line_two" text,
 	"city" text NOT NULL,
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS "address" (
 	"country" text NOT NULL,
 	"postal_code" text NOT NULL,
 	"type" text,
-	"longitude" numeric NOT NULL,
-	"latitude" numeric NOT NULL,
+	"longitude" numeric(10, 6) NOT NULL,
+	"latitude" numeric(10, 6) NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
@@ -49,20 +49,21 @@ CREATE TABLE IF NOT EXISTS "cart_item" (
 	"product_id" integer NOT NULL,
 	"variant_id" integer,
 	"quantity" integer NOT NULL,
-	"price" integer NOT NULL,
+	"price" numeric(10, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "cart" (
 	"id" integer PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" uuid NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "category" (
 	"id" integer PRIMARY KEY NOT NULL,
+	"parent_id" integer,
 	"name" text NOT NULL,
 	"description" text,
 	"created_at" timestamp DEFAULT now(),
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS "order_item" (
 	"product_id" integer NOT NULL,
 	"variant_id" integer,
 	"quantity" integer NOT NULL,
-	"price" integer NOT NULL,
+	"price" numeric(10, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
@@ -93,13 +94,13 @@ CREATE TABLE IF NOT EXISTS "order_shipment" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "order" (
 	"id" integer PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
-	"status" "order_status",
+	"user_id" uuid NOT NULL,
+	"status" "order_status" DEFAULT 'PENDING' NOT NULL,
 	"shipping_address_id" integer NOT NULL,
 	"billing_address_id" integer,
-	"total_price" integer NOT NULL,
-	"total_taxes" integer,
-	"bill_amount" integer NOT NULL,
+	"total_price" numeric(10, 2) NOT NULL,
+	"total_taxes" numeric(10, 2),
+	"bill_amount" numeric(10, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
@@ -134,7 +135,7 @@ CREATE TABLE IF NOT EXISTS "product_variant" (
 	"product_id" integer NOT NULL,
 	"variant_name" text NOT NULL,
 	"variant_value" text NOT NULL,
-	"additional_price" integer,
+	"additional_price" numeric(10, 2),
 	"available_quantity" integer NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
@@ -146,19 +147,20 @@ CREATE TABLE IF NOT EXISTS "product" (
 	"name" text NOT NULL,
 	"short_desc" text NOT NULL,
 	"long_desc" text NOT NULL,
-	"original_price" integer NOT NULL,
-	"selling_price" integer NOT NULL,
+	"original_price" numeric(10, 2) NOT NULL,
+	"selling_price" numeric(10, 2) NOT NULL,
 	"sku" varchar(50) NOT NULL,
 	"available_quantity" integer NOT NULL,
 	"feature_image" text NOT NULL,
 	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "product_sku_unique" UNIQUE("sku")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "promo_code" (
 	"id" integer PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
-	"discount_percentage" integer NOT NULL,
+	"discount_percentage" numeric(5, 2) NOT NULL,
 	"valid_from" timestamp NOT NULL,
 	"valid_to" timestamp NOT NULL,
 	"created_at" timestamp DEFAULT now(),
@@ -169,7 +171,7 @@ CREATE TABLE IF NOT EXISTS "promo_code" (
 CREATE TABLE IF NOT EXISTS "review" (
 	"id" integer PRIMARY KEY NOT NULL,
 	"product_id" integer NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" uuid NOT NULL,
 	"rating" integer,
 	"title" text NOT NULL,
 	"detailed_review" text,
@@ -179,47 +181,52 @@ CREATE TABLE IF NOT EXISTS "review" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "role" (
 	"id" integer PRIMARY KEY NOT NULL,
-	"name" text NOT NULL
+	"name" text NOT NULL,
+	CONSTRAINT "role_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "session" (
 	"sessionToken" text PRIMARY KEY NOT NULL,
-	"userId" text NOT NULL,
+	"userId" uuid NOT NULL,
 	"expires" timestamp NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "shipping_method" (
 	"id" integer PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
-	"cost" integer NOT NULL,
+	"cost" numeric(10, 2) NOT NULL,
 	"description" text
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "used_promo_code" (
 	"id" integer PRIMARY KEY NOT NULL,
 	"promo_code_id" integer NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" uuid NOT NULL,
 	"used_at" timestamp NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "user_role" (
-	"user_id" text NOT NULL,
+	"user_id" uuid NOT NULL,
 	"role_id" integer NOT NULL,
 	CONSTRAINT "user_role_user_id_role_id_pk" PRIMARY KEY("user_id","role_id")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "user" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text,
 	"email" text NOT NULL,
+	"first_name" varchar(255),
+	"last_name" varchar(255),
+	"password" text,
+	"phone_number" varchar(20),
+	"phone_verified" boolean DEFAULT false,
 	"emailVerified" timestamp,
 	"image" text,
-	"password" text,
-	"first_name" text,
-	"last_name" text,
-	"phone_number" text,
+	"role" varchar(50) DEFAULT 'user',
 	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
+	"updated_at" timestamp DEFAULT now(),
+	"last_login" timestamp,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "verificationToken" (
@@ -236,13 +243,13 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "address" ADD CONSTRAINT "address_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "address" ADD CONSTRAINT "address_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "cart_item" ADD CONSTRAINT "cart_item_cart_id_cart_id_fk" FOREIGN KEY ("cart_id") REFERENCES "public"."cart"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "cart_item" ADD CONSTRAINT "cart_item_cart_id_cart_id_fk" FOREIGN KEY ("cart_id") REFERENCES "public"."cart"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -260,13 +267,19 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "cart" ADD CONSTRAINT "cart_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "cart" ADD CONSTRAINT "cart_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "order_item" ADD CONSTRAINT "order_item_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "category" ADD CONSTRAINT "category_parent_id_category_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."category"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "order_item" ADD CONSTRAINT "order_item_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -284,7 +297,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "order_shipment" ADD CONSTRAINT "order_shipment_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "order_shipment" ADD CONSTRAINT "order_shipment_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -314,31 +327,31 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "payment" ADD CONSTRAINT "payment_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "payment" ADD CONSTRAINT "payment_order_id_order_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."order"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "product_category" ADD CONSTRAINT "product_category_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "product_category" ADD CONSTRAINT "product_category_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "product_category" ADD CONSTRAINT "product_category_category_id_category_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."category"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "product_category" ADD CONSTRAINT "product_category_category_id_category_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."category"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "product_image" ADD CONSTRAINT "product_image_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "product_image" ADD CONSTRAINT "product_image_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "product_variant" ADD CONSTRAINT "product_variant_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "product_variant" ADD CONSTRAINT "product_variant_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -350,13 +363,13 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "review" ADD CONSTRAINT "review_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "review" ADD CONSTRAINT "review_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "review" ADD CONSTRAINT "review_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "review" ADD CONSTRAINT "review_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -380,13 +393,13 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "user_role" ADD CONSTRAINT "user_role_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "user_role" ADD CONSTRAINT "user_role_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "user_role" ADD CONSTRAINT "user_role_role_id_role_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."role"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "user_role" ADD CONSTRAINT "user_role_role_id_role_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."role"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

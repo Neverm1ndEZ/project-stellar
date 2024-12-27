@@ -27,13 +27,26 @@ import { db } from "@/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const session = await auth();
+  try {
+    // Get session and add detailed logging
+    const session = await auth();
 
-  return {
-    db,
-    session,
-    ...opts,
-  };
+    console.log("TRPC Context Creation:", {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      phoneVerified: session?.user?.phoneVerified,
+    });
+
+    return {
+      db,
+      session,
+      ...opts,
+    };
+  } catch (error) {
+    console.error("Error creating TRPC context:", error);
+    throw error;
+  }
 };
 
 /**
@@ -121,12 +134,16 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
-    if (!ctx.session || !ctx.session.user) {
+    if (!ctx.session?.user?.id) {
+      console.log("Protected procedure rejected:", {
+        hasSession: !!ctx.session,
+        hasUser: !!ctx.session?.user,
+        path: ctx.path,
+      });
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     return next({
       ctx: {
-        // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
       },
     });
