@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/utils/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { GoogleButton } from "../../_components/GoogleButton";
 import { OrDivider } from "../../_components/OrDivider";
 import { TermsText } from "../../_components/TermsText";

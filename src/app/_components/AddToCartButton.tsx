@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { type ButtonProps } from "@/components/ui/button";
-import { useAddToCart } from "@/utils/useAddToCart";
+import { useAddToCart } from "@/hooks/useAddToCart";
 import { type productVariants, type products } from "@/server/db/schema";
 import { type InferSelectModel } from "drizzle-orm";
 

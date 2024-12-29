@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { checkoutSchema } from "@/server/db/checkout-schema";
 import { type addresses } from "@/server/db/schema";
 import { api } from "@/trpc/react";
-import { usePayment, type PaymentMethod } from "@/utils/usePayment";
+import { usePayment, type PaymentMethod } from "@/hooks/usePayment";
 import { type z } from "zod";
 import { AddressForm } from "./AddressForm";
 import { PaymentMethodForm } from "./PaymentMethodForm";

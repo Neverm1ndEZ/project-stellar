@@ -3,7 +3,7 @@
 
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/store/cart";
-import { usePayment, type PaymentMethod } from "@/utils/usePayment";
+import { usePayment, type PaymentMethod } from "@/hooks/usePayment";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckoutForm } from "./CheckoutForm";

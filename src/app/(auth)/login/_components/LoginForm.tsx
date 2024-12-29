@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Phone, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/utils/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { GoogleButton } from "../../_components/GoogleButton";
 import { OrDivider } from "../../_components/OrDivider";
 

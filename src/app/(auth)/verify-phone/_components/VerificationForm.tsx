@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Phone } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { usePhoneVerification } from "@/utils/usePhoneVerification";
+import { usePhoneVerification } from "@/hooks/usePhoneVerification";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export function VerificationForm() {
