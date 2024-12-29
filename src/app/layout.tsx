@@ -7,6 +7,8 @@ import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 import { Providers } from "./providers";
 import { TRPCReactProvider } from "@/trpc/react";
+import { Tooltip } from "@radix-ui/react-tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
   title: "Amamma's Kitchen - South Indian Pickles",
@@ -26,8 +28,10 @@ export default function RootLayout({
           <main className="min-h-screen">
             <TRPCReactProvider>
               <CartProvider>
-                {children}
-                <Toaster />
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                </TooltipProvider>
               </CartProvider>
             </TRPCReactProvider>
           </main>
