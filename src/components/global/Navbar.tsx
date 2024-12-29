@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { toast } from "@/hooks/use-toast";
 import { useCart } from "@/store/cart";
 import {
   Bell,
@@ -215,7 +216,21 @@ export default function Navbar() {
                       <UserMenuItem key={item.href} item={item} mobile={true} />
                     ))}
                     <button
-                      onClick={() => signOut()}
+                      onClick={() =>
+                        signOut()
+                          .then(() => {
+                            toast({
+                              title: "Success",
+                              description: "Successfully signed out",
+                            });
+                          })
+                          .catch(() => {
+                            toast({
+                              title: "Error",
+                              description: "Failed to sign out",
+                            });
+                          })
+                      }
                       className="flex w-full items-center space-x-2 rounded-lg p-3 text-base font-medium text-red-800 transition-colors hover:bg-red-50/50"
                     >
                       <LogOut className="h-5 w-5" />
@@ -331,7 +346,21 @@ export default function Navbar() {
                     <DropdownMenuSeparator className="my-1" />
                     <DropdownMenuItem asChild className="p-0">
                       <button
-                        onClick={() => signOut()}
+                        onClick={() =>
+                          signOut()
+                            .then(() => {
+                              toast({
+                                title: "Success",
+                                description: "Successfully signed out",
+                              });
+                            })
+                            .catch(() => {
+                              toast({
+                                title: "Error",
+                                description: "Failed to sign out",
+                              });
+                            })
+                        }
                         className="flex w-full items-center space-x-2 rounded-lg p-2 text-sm font-medium text-red-800 transition-colors hover:bg-red-50/50 hover:text-red-600"
                       >
                         <LogOut className="h-4 w-4" />
