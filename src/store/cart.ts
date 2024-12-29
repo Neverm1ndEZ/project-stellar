@@ -120,154 +120,66 @@ export const useCart = create<CartStore>()(
       // Cart item operations with validation and error handling
       addItemLocally: (item) => {
         set((state) => {
-          try {
-            const unitPrice = Number(item.price);
+          const existingItem = state.items.find(
+            (i) =>
+              i.productId === item.productId && i.variantId === item.variantId,
+          );
 
-            console.log("Adding item:", {
-              incomingItemPrice: unitPrice,
-              incomingItemQuantity: item.quantity,
-              productId: item.productId,
-            });
+          if (existingItem) {
+            // Update quantity and recalculate price
+            const unitPrice = item.price / item.quantity;
+            const newQuantity = existingItem.quantity + item.quantity;
 
-            // Validate available quantity
-            if (
-              item.maxQuantity !== undefined &&
-              item.quantity > item.maxQuantity
-            ) {
-              return {
-                items: state.items,
-                error: `Only ${item.maxQuantity} items available`,
-              };
-            }
-
-            const existingItem = state.items.find(
-              (i) =>
-                i.productId === item.productId &&
-                i.variantId === item.variantId,
-            );
-
-            if (existingItem) {
-              const newQuantity = existingItem.quantity + item.quantity;
-
-              console.log("Updating existing item:", {
-                existingItemPrice: existingItem.price,
-                existingItemQuantity: existingItem.quantity,
-                newQuantity,
-                calculatedNewPrice: item.price * newQuantity,
-              });
-
-              // Check combined quantity against inventory
-              if (
-                existingItem.maxQuantity !== undefined &&
-                newQuantity > existingItem.maxQuantity
-              ) {
-                return {
-                  items: state.items.map((i) =>
-                    i.id === existingItem.id
-                      ? {
-                          ...i,
-                          error: `Cannot add more than ${existingItem.maxQuantity} items`,
-                        }
-                      : i,
-                  ),
-                };
-              }
-
-              return {
-                items: state.items.map((i) =>
-                  i.productId === item.productId &&
-                  i.variantId === item.variantId
-                    ? {
-                        ...i,
-                        quantity: newQuantity,
-                        price: item.price * newQuantity, // Use item.price directly as it's the unit price
-                        error: undefined,
-                      }
-                    : i,
-                ),
-              };
-            } else {
-              console.log("Creating new item:", {
-                price: item.price,
-                quantity: item.quantity,
-                totalPrice: item.price * item.quantity,
-              });
-            }
-
-            const newItem: ClientCartItem = {
-              ...item,
-              price: unitPrice * item.quantity, // Now we're multiplying numbers
-              id: Date.now(),
-              name: item.product.name,
-              size: item.variant?.variantValue,
-              image: item.product.featureImage ?? undefined,
-              isSelected: false,
-              error: undefined,
+            return {
+              items: state.items.map((i) =>
+                i.id === existingItem.id
+                  ? {
+                      ...i,
+                      quantity: newQuantity,
+                      price: unitPrice * newQuantity,
+                    }
+                  : i,
+              ),
             };
-            // In addItemLocally when handling existing items:
-
-            return { items: [...state.items, newItem] };
-          } catch (error) {
-            console.error("Error in addItemLocally:", error);
-            return { ...state, error: "Failed to add item to cart" };
           }
+
+          // Add new item
+          return {
+            items: [
+              ...state.items,
+              {
+                ...item,
+                id: Date.now(),
+              },
+            ],
+          };
         });
       },
 
       updateQuantityLocally: (id, quantity) => {
         set((state) => {
-          try {
-            const item = state.items.find((i) => i.id === id);
-            if (!item) return state;
+          const item = state.items.find((i) => i.id === id);
+          if (!item) return state;
 
-            // Calculate unit price from current item's total price and quantity
-            const unitPrice = item.price / item.quantity;
+          const unitPrice = item.price / item.quantity;
 
-            // Validate against inventory
-            if (item.maxQuantity !== undefined && quantity > item.maxQuantity) {
-              return {
-                items: state.items.map((i) =>
-                  i.id === id
-                    ? { ...i, error: `Cannot exceed ${item.maxQuantity} items` }
-                    : i,
-                ),
-              };
-            }
-
-            if (quantity < 1) {
-              const newSelectedItems = new Set(state.selectedItems);
-              newSelectedItems.delete(id);
-              return {
-                items: state.items.filter((i) => i.id !== id),
-                selectedItems: newSelectedItems,
-              };
-            }
-
-            // In updateQuantityLocally:
-            console.log({
-              currentPrice: item.price,
-              currentQuantity: item.quantity,
-              calculatedUnitPrice: unitPrice,
-              newQuantity: quantity,
-              newTotalPrice: unitPrice * quantity,
-            });
-
+          if (quantity < 1) {
             return {
-              items: state.items.map((i) =>
-                i.id === id
-                  ? {
-                      ...i,
-                      quantity,
-                      price: unitPrice * quantity, // Use the calculated unit price
-                      error: undefined,
-                    }
-                  : i,
-              ),
+              items: state.items.filter((i) => i.id !== id),
             };
-          } catch (error) {
-            console.error("Error in updateQuantityLocally:", error);
-            return state;
           }
+
+          return {
+            items: state.items.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    quantity,
+                    price: unitPrice * quantity,
+                  }
+                : i,
+            ),
+          };
         });
       },
 
@@ -353,63 +265,47 @@ export const useCart = create<CartStore>()(
       // Server sync operations
       mergeServerCart: (serverItems) => {
         set((state) => {
-          try {
-            const transformedServerItems = serverItems.map(
-              (item): ClientCartItem => ({
-                ...item,
-                name: item.product.name,
-                image: item.product.featureImage ?? undefined,
-                size: item.variant?.variantValue,
-                isSelected: false,
-                maxQuantity: undefined,
-                error: undefined,
-              }),
-            );
+          const mergedItems = new Map<string, ClientCartItem>();
 
-            if (state.isAnonymous) {
-              const mergedItems = [...transformedServerItems];
+          // First, process server items
+          serverItems.forEach((item) => {
+            const key = `${item.productId}-${item.variantId || "default"}`;
+            mergedItems.set(key, {
+              ...item,
+              name: item.product.name,
+              image: item.product.featureImage ?? undefined,
+              size: item.variant?.variantValue,
+              maxQuantity: item.product.availableQuantity,
+              isSelected: false,
+            });
+          });
 
-              state.items.forEach((localItem) => {
-                const serverItem = transformedServerItems.find(
-                  (i) =>
-                    i.productId === localItem.productId &&
-                    i.variantId === localItem.variantId,
-                );
+          // Then merge local items properly
+          if (state.isAnonymous) {
+            state.items.forEach((localItem) => {
+              const key = `${localItem.productId}-${localItem.variantId || "default"}`;
+              const existingItem = mergedItems.get(key);
 
-                if (!serverItem) {
-                  mergedItems.push(localItem);
-                } else {
-                  const index = mergedItems.findIndex(
-                    (i) => i.id === serverItem.id,
-                  );
-                  if (index !== -1) {
-                    mergedItems[index] = {
-                      ...serverItem,
-                      quantity: serverItem.quantity + localItem.quantity,
-                      price:
-                        (serverItem.price / serverItem.quantity) *
-                        (serverItem.quantity + localItem.quantity),
-                    };
-                  }
-                }
-              });
+              if (existingItem) {
+                // Calculate unit price from server item
+                const unitPrice = existingItem.price / existingItem.quantity;
+                const newQuantity = existingItem.quantity + localItem.quantity;
 
-              return {
-                items: mergedItems,
-                isAnonymous: false,
-                selectedItems: new Set(),
-              };
-            }
-
-            return {
-              items: transformedServerItems,
-              isAnonymous: false,
-              selectedItems: new Set(),
-            };
-          } catch (error) {
-            console.error("Error in mergeServerCart:", error);
-            return state;
+                mergedItems.set(key, {
+                  ...existingItem,
+                  quantity: newQuantity,
+                  price: unitPrice * newQuantity,
+                });
+              } else {
+                mergedItems.set(key, localItem);
+              }
+            });
           }
+
+          return {
+            items: Array.from(mergedItems.values()),
+            isAnonymous: false,
+          };
         });
       },
 

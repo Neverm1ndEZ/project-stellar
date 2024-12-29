@@ -301,6 +301,11 @@ export function useCartOperations() {
       const item = items.find((item) => item.id === id);
       if (!item) return;
 
+      // If new quantity is less than 1, this should be handled by the component
+      if (newQuantity < 1) {
+        throw new Error("Invalid quantity: Must be greater than 0");
+      }
+
       startLoading();
 
       try {
@@ -316,18 +321,18 @@ export function useCartOperations() {
         updateQuantityLocally(id, newQuantity);
 
         if (!isAnonymous) {
-          const quantityDiff = newQuantity - item.quantity;
-
-          if (quantityDiff > 0) {
+          if (newQuantity > item.quantity) {
+            // Increasing quantity
             await addToCartMutation.mutateAsync({
               productId: item.productId,
               variantId: item.variantId,
-              quantity: quantityDiff,
+              quantity: newQuantity - item.quantity,
             });
           } else {
+            // Decreasing quantity
             await removeFromCartMutation.mutateAsync({
               productId: item.productId,
-              quantity: Math.abs(quantityDiff),
+              quantity: item.quantity - newQuantity,
             });
           }
         }
@@ -461,63 +466,34 @@ export function useCartSync() {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const initialSyncRef = useRef(false);
-  const syncIntervalRef = useRef<NodeJS.Timeout>();
-
   const { syncWithServer } = useCartOperations();
   const { syncAnonymousCart } = useCartSync();
   const { setAnonymous } = useCart();
   const isAnonymous = useCart((state) => state.isAnonymous);
 
-  // Handle authentication state changes
+  // Single effect for initialization and session changes
   useEffect(() => {
-    const handleSessionChange = async () => {
+    const handleCartSync = async () => {
       try {
-        if (session && isAnonymous) {
-          await syncAnonymousCart();
-        } else if (!session && !isAnonymous) {
-          setAnonymous(true);
-        }
-      } catch (error) {
-        console.error("Error handling session change:", error);
-      }
-    };
-
-    void handleSessionChange();
-  }, [session, isAnonymous, syncAnonymousCart, setAnonymous]);
-
-  // Handle initial cart synchronization
-  useEffect(() => {
-    const initializeCart = async () => {
-      if (!initialSyncRef.current) {
-        initialSyncRef.current = true;
-
-        try {
+        if (!initialSyncRef.current) {
+          initialSyncRef.current = true;
           if (session) {
             await syncWithServer();
           }
-        } catch (error) {
-          console.error("Error initializing cart:", error);
+        } else if (session && isAnonymous) {
+          // Handle login after initial load
+          await syncAnonymousCart();
+        } else if (!session && !isAnonymous) {
+          // Handle logout
+          setAnonymous(true);
         }
+      } catch (error) {
+        console.error("Cart sync error:", error);
       }
     };
 
-    void initializeCart();
-  }, [session, syncWithServer]);
-
-  // Set up periodic synchronization for authenticated users
-  useEffect(() => {
-    if (session) {
-      syncIntervalRef.current = setInterval(() => {
-        void syncWithServer();
-      }, 300000); // Sync every 5 minutes
-    }
-
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
-  }, [session, syncWithServer]);
+    void handleCartSync();
+  }, [session, isAnonymous, syncWithServer, syncAnonymousCart, setAnonymous]);
 
   return children;
 }

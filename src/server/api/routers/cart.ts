@@ -294,16 +294,33 @@ export const cartRouter = createTRPCRouter({
     }),
 
   // Add single item to cart with inventory validation
+  // Add single item to cart with improved inventory validation and merge handling
   addToCart: protectedProcedure
     .input(CartItemSchema)
     .mutation(async ({ ctx, input }) => {
       try {
         return await db.transaction(async (tx) => {
-          // Get or create cart
+          // First, get or create the user's cart with a single query
+          // We'll fetch related items to check for existing products
           let cart = await tx.query.carts.findFirst({
             where: eq(carts.userId, ctx.session.user.id),
+            with: {
+              items: {
+                where: and(
+                  eq(cartItems.productId, input.productId),
+                  input.variantId
+                    ? eq(cartItems.variantId, input.variantId)
+                    : eq(cartItems.variantId, null),
+                ),
+                with: {
+                  product: true,
+                  variant: true,
+                },
+              },
+            },
           });
 
+          // If no cart exists, create one
           if (!cart) {
             const [newCart] = await tx
               .insert(carts)
@@ -311,10 +328,13 @@ export const cartRouter = createTRPCRouter({
                 userId: ctx.session.user.id,
               })
               .returning();
-            cart = newCart;
+            cart = {
+              ...newCart,
+              items: [],
+            };
           }
 
-          // Get product with variant in a single query
+          // Get product with variant in a single query for inventory check
           const product = await tx.query.products.findFirst({
             where: eq(products.id, input.productId),
             with: {
@@ -329,65 +349,78 @@ export const cartRouter = createTRPCRouter({
           if (!product) {
             throw new TRPCError({
               code: "NOT_FOUND",
-              message: "Product not found",
+              message: "Product not found or has been removed",
             });
           }
 
-          // Validate inventory with a buffer for concurrent operations
-          if (
-            !product.availableQuantity ||
-            product.availableQuantity < input.quantity + 1
-          ) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Insufficient inventory",
-            });
-          }
-
-          // Calculate final price
+          // Calculate the final price including variant adjustments
           let finalPrice = product.sellingPrice;
-          if (input.variantId && product.variants?.[0]) {
-            finalPrice += product.variants[0].additionalPrice ?? 0;
+          let availableQuantity = product.availableQuantity;
+
+          // Handle variant-specific logic
+          if (input.variantId) {
+            const variant = product.variants?.[0];
+            if (!variant) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Selected variant not found or has been removed",
+              });
+            }
+            finalPrice += variant.additionalPrice ?? 0;
+            availableQuantity = Math.min(
+              availableQuantity,
+              variant.availableQuantity,
+            );
           }
 
-          // Check for existing cart item with FOR UPDATE lock
-          const existingItem = await tx.query.cartItems.findFirst({
-            where: and(
-              eq(cartItems.cartId, cart.id),
-              eq(cartItems.productId, input.productId),
-              input.variantId
-                ? eq(cartItems.variantId, input.variantId)
-                : eq(cartItems.variantId, null),
-            ),
-            for: "update",
-          });
-
+          // Check for existing cart item and handle quantity updates
+          const existingItem = cart.items[0]; // We filtered items above, so first item if it exists
           if (existingItem) {
+            // Calculate new quantity and validate against inventory
             const newQuantity = existingItem.quantity + input.quantity;
 
-            // Recheck inventory for combined quantity
-            if (newQuantity > (product.availableQuantity ?? 0)) {
+            // Add a buffer for concurrent operations
+            if (newQuantity > availableQuantity - 1) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: "Cannot exceed available quantity",
+                message: `Only ${availableQuantity} items available in stock`,
               });
             }
 
-            // Update existing item
+            // Update existing item with proper locking
             const [updatedItem] = await tx
               .update(cartItems)
               .set({
                 quantity: newQuantity,
-                price: finalPrice * newQuantity,
+                price: finalPrice * newQuantity, // Recalculate total price
                 updatedAt: new Date(),
               })
               .where(eq(cartItems.id, existingItem.id))
               .returning();
 
-            return updatedItem;
+            return {
+              ...updatedItem,
+              product: {
+                name: product.name,
+                featureImage: product.featureImage,
+                shortDesc: product.shortDesc,
+                sellingPrice: product.sellingPrice,
+                originalPrice: product.originalPrice,
+                availableQuantity,
+              },
+              variant: product.variants?.[0] ?? null,
+            };
           }
 
-          // Add new item
+          // For new items, validate inventory
+          if (input.quantity > availableQuantity) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Cannot add ${input.quantity} items. Only ${availableQuantity} available in stock`,
+            });
+          }
+
+          // Add new item to cart
           const [newItem] = await tx
             .insert(cartItems)
             .values({
@@ -399,16 +432,31 @@ export const cartRouter = createTRPCRouter({
             })
             .returning();
 
-          return newItem;
+          // Return the new item with product details for the client
+          return {
+            ...newItem,
+            product: {
+              name: product.name,
+              featureImage: product.featureImage,
+              shortDesc: product.shortDesc,
+              sellingPrice: product.sellingPrice,
+              originalPrice: product.originalPrice,
+              availableQuantity,
+            },
+            variant: product.variants?.[0] ?? null,
+          };
         });
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
+        // Handle specific error cases
+        if (error instanceof TRPCError) {
+          throw error;
+        }
 
+        // Log unexpected errors but don't expose internals to client
         console.error("Add to cart error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to add item to cart",
-          cause: error,
+          message: "Failed to add item to cart. Please try again.",
         });
       }
     }),
@@ -418,78 +466,83 @@ export const cartRouter = createTRPCRouter({
     .input(
       z.object({
         productId: z.number().positive(),
-        quantity: z.number().positive(),
+        quantity: z.number().min(0), // Changed from positive() to min(0)
       }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        const userCart = await db.query.carts.findFirst({
-          where: eq(carts.userId, ctx.session.user.id),
-        });
-
-        if (!userCart) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Cart not found",
-          });
-        }
-
-        const cartItem = await db.query.cartItems.findFirst({
-          where: and(
-            eq(cartItems.cartId, userCart.id),
-            eq(cartItems.productId, input.productId),
-          ),
-        });
-
-        if (!cartItem) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Item not found in cart",
-          });
-        }
-
-        const newQuantity = cartItem.quantity - input.quantity;
-
-        if (newQuantity <= 0) {
-          // Remove the item completely
-          await db
-            .delete(cartItems)
-            .where(
-              and(
-                eq(cartItems.cartId, userCart.id),
-                eq(cartItems.productId, input.productId),
-              ),
-            );
-
-          // Check if cart is empty
-          const remainingItems = await db.query.cartItems.findFirst({
-            where: eq(cartItems.cartId, userCart.id),
+        return await db.transaction(async (tx) => {
+          // Get the cart with the specific item for atomic updates
+          const cart = await tx.query.carts.findFirst({
+            where: eq(carts.userId, ctx.session.user.id),
+            with: {
+              items: {
+                where: eq(cartItems.productId, input.productId),
+              },
+            },
           });
 
-          if (!remainingItems) {
-            // Delete the cart if no items left
-            await db.delete(carts).where(eq(carts.id, userCart.id));
+          if (!cart) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Cart not found",
+            });
           }
-        } else {
-          // Update with new quantity
-          await db
+
+          const cartItem = cart.items[0];
+          if (!cartItem) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Item not found in cart",
+            });
+          }
+
+          const newQuantity = cartItem.quantity - input.quantity;
+
+          // If new quantity would be 0 or less, remove the item
+          if (newQuantity <= 0) {
+            await tx.delete(cartItems).where(eq(cartItems.id, cartItem.id));
+
+            // Check if cart is now empty
+            const remainingItems = await tx
+              .select({ count: sql<number>`count(*)` })
+              .from(cartItems)
+              .where(eq(cartItems.cartId, cart.id));
+
+            if (remainingItems[0].count === 0) {
+              await tx.delete(carts).where(eq(carts.id, cart.id));
+            }
+
+            return {
+              success: true,
+              removed: true,
+              newQuantity: 0,
+            };
+          }
+
+          // Otherwise update the quantity
+          const [updatedItem] = await tx
             .update(cartItems)
             .set({
               quantity: newQuantity,
+              price: sql`(${cartItems.price} / ${cartItems.quantity}) * ${newQuantity}`, // Recalculate price based on unit price
             })
-            .where(
-              and(
-                eq(cartItems.cartId, userCart.id),
-                eq(cartItems.productId, input.productId),
-              ),
-            );
-        }
+            .where(eq(cartItems.id, cartItem.id))
+            .returning();
 
-        return { success: true };
+          return {
+            success: true,
+            removed: false,
+            newQuantity: updatedItem.quantity,
+          };
+        });
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
+
+        console.error("Remove from cart error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to remove from cart",
+          message: "Failed to update cart item",
           cause: error,
         });
       }

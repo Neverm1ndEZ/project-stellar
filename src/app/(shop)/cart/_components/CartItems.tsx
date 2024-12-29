@@ -7,10 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
+import { type CartItem } from "@/types/cart";
 
 export function CartItems() {
   const { items, isLoading } = useCart();
   const { updateQuantity, removeItem } = useCartOperations();
+
+  const handleQuantityChange = async (item: CartItem, newQuantity: number) => {
+    try {
+      // If new quantity would be less than 1, remove the item entirely
+      if (newQuantity < 1) {
+        await removeItem(item.id);
+        return;
+      }
+
+      await updateQuantity(item.id, newQuantity);
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -19,7 +34,7 @@ export function CartItems() {
           <CardContent className="flex items-center p-4">
             <Image
               src={item.image ?? "/placeholder.png"}
-              alt={item.name}
+              alt={"something"}
               className="h-24 w-24 rounded object-cover"
               width={96}
               height={96}
@@ -33,9 +48,7 @@ export function CartItems() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() =>
-                    updateQuantity(item.id, Math.max(1, item.quantity - 1))
-                  }
+                  onClick={() => handleQuantityChange(item, item.quantity - 1)}
                   disabled={isLoading}
                 >
                   <Minus className="h-4 w-4" />
@@ -44,7 +57,7 @@ export function CartItems() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                  onClick={() => handleQuantityChange(item, item.quantity + 1)}
                   disabled={isLoading}
                 >
                   <Plus className="h-4 w-4" />
