@@ -417,81 +417,79 @@ export const cartRouter = createTRPCRouter({
   removeFromCart: protectedProcedure
     .input(
       z.object({
-        itemIds: z.array(z.number()).min(1),
-        quantity: z.number().min(1).optional(),
+        productId: z.number().positive(),
+        quantity: z.number().positive(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
-        return await db.transaction(async (tx) => {
-          const cart = await tx.query.carts.findFirst({
-            where: eq(carts.userId, ctx.session.user.id),
-            with: {
-              items: {
-                where: inArray(cartItems.id, input.itemIds),
-              },
-            },
+        const userCart = await db.query.carts.findFirst({
+          where: eq(carts.userId, ctx.session.user.id),
+        });
+
+        if (!userCart) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cart not found",
           });
+        }
 
-          if (!cart) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Cart not found",
-            });
-          }
+        const cartItem = await db.query.cartItems.findFirst({
+          where: and(
+            eq(cartItems.cartId, userCart.id),
+            eq(cartItems.productId, input.productId),
+          ),
+        });
 
-          if (cart.items.length === 0) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Items not found in cart",
-            });
-          }
+        if (!cartItem) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Item not found in cart",
+          });
+        }
 
-          // Handle partial quantity removal
-          if (input.quantity) {
-            const updates = cart.items.map((item) => {
-              const newQuantity = item.quantity - input.quantity;
+        const newQuantity = cartItem.quantity - input.quantity;
 
-              if (newQuantity <= 0) {
-                return tx.delete(cartItems).where(eq(cartItems.id, item.id));
-              }
+        if (newQuantity <= 0) {
+          // Remove the item completely
+          await db
+            .delete(cartItems)
+            .where(
+              and(
+                eq(cartItems.cartId, userCart.id),
+                eq(cartItems.productId, input.productId),
+              ),
+            );
 
-              return tx
-                .update(cartItems)
-                .set({
-                  quantity: newQuantity,
-                  price: (item.price / item.quantity) * newQuantity,
-                  updatedAt: new Date(),
-                })
-                .where(eq(cartItems.id, item.id));
-            });
-
-            await Promise.all(updates);
-          } else {
-            // Remove items completely
-            await tx
-              .delete(cartItems)
-              .where(inArray(cartItems.id, input.itemIds));
-          }
-
-          // Check if cart is empty and remove if necessary
-          const remainingItems = await tx.query.cartItems.findFirst({
-            where: eq(cartItems.cartId, cart.id),
+          // Check if cart is empty
+          const remainingItems = await db.query.cartItems.findFirst({
+            where: eq(cartItems.cartId, userCart.id),
           });
 
           if (!remainingItems) {
-            await tx.delete(carts).where(eq(carts.id, cart.id));
+            // Delete the cart if no items left
+            await db.delete(carts).where(eq(carts.id, userCart.id));
           }
+        } else {
+          // Update with new quantity
+          await db
+            .update(cartItems)
+            .set({
+              quantity: newQuantity,
+            })
+            .where(
+              and(
+                eq(cartItems.cartId, userCart.id),
+                eq(cartItems.productId, input.productId),
+              ),
+            );
+        }
 
-          return { success: true };
-        });
+        return { success: true };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
-
-        console.error("Remove from cart error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to remove items from cart",
+          message: "Failed to remove from cart",
           cause: error,
         });
       }

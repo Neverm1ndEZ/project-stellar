@@ -87,7 +87,7 @@ export const verificationTokens = pgTable(
 );
 
 export const roles = pgTable("role", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: text("name").notNull().unique(),
 });
 
@@ -108,7 +108,7 @@ export const userRoles = pgTable(
 
 // Product Management Tables
 export const brands = pgTable("brand", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -116,7 +116,7 @@ export const brands = pgTable("brand", {
 });
 
 export const categories = pgTable("category", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   parentId: integer("parent_id").references(() => categories.id),
   name: text("name").notNull(),
   description: text("description"),
@@ -125,7 +125,7 @@ export const categories = pgTable("category", {
 });
 
 export const products = pgTable("product", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   brandId: integer("brand_id").references(() => brands.id),
   name: text("name").notNull(),
   shortDesc: text("short_desc").notNull(),
@@ -158,7 +158,7 @@ export const productCategories = pgTable(
 );
 
 export const productImages = pgTable("product_image", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   productId: integer("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
@@ -169,7 +169,7 @@ export const productImages = pgTable("product_image", {
 });
 
 export const productVariants = pgTable("product_variant", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   productId: integer("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
@@ -183,7 +183,7 @@ export const productVariants = pgTable("product_variant", {
 
 // Reviews
 export const reviews = pgTable("review", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   productId: integer("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
@@ -199,7 +199,7 @@ export const reviews = pgTable("review", {
 
 // Cart Management
 export const carts = pgTable("cart", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -208,7 +208,7 @@ export const carts = pgTable("cart", {
 });
 
 export const cartItems = pgTable("cart_item", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   cartId: integer("cart_id")
     .notNull()
     .references(() => carts.id, { onDelete: "cascade" }),
@@ -224,7 +224,7 @@ export const cartItems = pgTable("cart_item", {
 
 // Address Management
 export const addresses = pgTable("address", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -243,7 +243,7 @@ export const addresses = pgTable("address", {
 
 // Order Management
 export const orders = pgTable("order", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
@@ -262,7 +262,7 @@ export const orders = pgTable("order", {
 });
 
 export const orderItems = pgTable("order_item", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   orderId: integer("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
@@ -278,14 +278,14 @@ export const orderItems = pgTable("order_item", {
 
 // Shipping and Payment
 export const shippingMethods = pgTable("shipping_method", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: text("name").notNull(),
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
 });
 
 export const orderShipments = pgTable("order_shipment", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   orderId: integer("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
@@ -300,7 +300,7 @@ export const orderShipments = pgTable("order_shipment", {
 });
 
 export const payments = pgTable("payment", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   orderId: integer("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
@@ -313,7 +313,7 @@ export const payments = pgTable("payment", {
 
 // Promotional Features
 export const promoCodes = pgTable("promo_code", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   code: text("code").notNull().unique(),
   discountPercentage: decimal("discount_percentage", {
     precision: 5,
@@ -326,7 +326,7 @@ export const promoCodes = pgTable("promo_code", {
 });
 
 export const usedPromoCodes = pgTable("used_promo_code", {
-  id: integer("id").primaryKey().notNull(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   promoCodeId: integer("promo_code_id")
     .notNull()
     .references(() => promoCodes.id),
