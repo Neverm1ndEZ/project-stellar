@@ -18,10 +18,18 @@ const addressSchema = z.object({
   type: z.enum(["shipping", "billing"]).default("shipping"),
 });
 
+const addressInputSchema = z.object({
+  addressLineOne: z.string().min(1, "Address is required"),
+  addressLineTwo: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  postalCode: z.string().regex(/^\d{6}$/, "Enter valid 6-digit postal code"),
+  type: z.enum(["HOME", "OFFICE", "OTHER"]),
+});
+
 export const addressRouter = createTRPCRouter({
   getUserAddresses: protectedProcedure.query(async ({ ctx }) => {
     try {
-      // Using Drizzle's query builder to get addresses
       const userAddresses = await db.query.addresses.findMany({
         where: eq(addresses.userId, ctx.session.user.id),
         orderBy: (addresses, { desc }) => [desc(addresses.createdAt)],
@@ -38,21 +46,22 @@ export const addressRouter = createTRPCRouter({
   }),
 
   createAddress: protectedProcedure
-    .input(addressSchema)
+    .input(addressInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        // Insert new address using Drizzle
+        // Insert new address with all required fields
         const [newAddress] = await db
           .insert(addresses)
           .values({
             userId: ctx.session.user.id,
-            addressLineOne: input.address,
+            addressLineOne: input.addressLineOne,
+            addressLineTwo: input.addressLineTwo || null,
             city: input.city,
             state: input.state,
-            country: "India", // Default for now
-            postalCode: input.pincode,
+            postalCode: input.postalCode,
             type: input.type,
-            // These would normally come from a geocoding service
+            country: "India", // Default for now
+            // These would come from a geocoding service in production
             latitude: "0",
             longitude: "0",
             createdAt: new Date(),
@@ -60,11 +69,16 @@ export const addressRouter = createTRPCRouter({
           })
           .returning();
 
+        if (!newAddress) {
+          throw new Error("Failed to create address");
+        }
+
         return newAddress;
       } catch (error) {
+        console.error("Address creation error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create address",
+          message: "Failed to save address",
           cause: error,
         });
       }
