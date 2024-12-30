@@ -25,12 +25,12 @@ CREATE TABLE IF NOT EXISTS "address" (
 	"address_line_one" text NOT NULL,
 	"address_line_two" text,
 	"city" text NOT NULL,
-	"state" text,
+	"state" text NOT NULL,
 	"country" text NOT NULL,
 	"postal_code" text NOT NULL,
-	"type" text,
-	"longitude" numeric(10, 6) NOT NULL,
+	"type" text NOT NULL,
 	"latitude" numeric(10, 6) NOT NULL,
+	"longitude" numeric(10, 6) NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );

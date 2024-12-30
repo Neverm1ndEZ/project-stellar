@@ -60,53 +60,53 @@ export default function Navbar() {
     0,
   );
 
-  // Function to generate user-specific URLs by replacing the userId parameter
-  const getUserSpecificUrl = (baseRoute: string) => {
-    if (!session?.user?.id) return "/login";
-    return baseRoute.replace("[userId]", session.user.id);
-  };
+  // // Function to generate user-specific URLs by replacing the userId parameter
+  // const getUserSpecificUrl = (baseRoute: string) => {
+  //   if (!session?.user?.id) return "/login";
+  //   return baseRoute.replace("[userId]", session.user.id);
+  // };
 
   // User menu items with dynamic routes
   const userMenuItems: UserMenuItem[] = [
     {
       name: "Profile",
-      href: "/users/[userId]/profile",
+      href: "/account/profile", // Changed from /users/[userId]/profile
       icon: User,
       description: "View and edit your profile",
     },
     {
       name: "Orders",
-      href: "/users/[userId]/orders",
+      href: "/account/orders", // Changed from /users/[userId]/orders
       icon: Package,
       description: "Track your orders",
     },
     {
       name: "Wishlist",
-      href: "/users/[userId]/wishlist",
+      href: "/account/wishlist", // Changed from /users/[userId]/wishlist
       icon: Heart,
       description: "View saved items",
     },
     {
       name: "Addresses",
-      href: "/users/[userId]/addresses",
+      href: "/account/addresses", // Changed from /users/[userId]/addresses
       icon: MapPin,
       description: "Manage delivery addresses",
     },
     {
       name: "Payment Methods",
-      href: "/users/[userId]/payments",
+      href: "/account/payments", // Changed from /users/[userId]/payments
       icon: CreditCard,
       description: "Manage payment options",
     },
     {
       name: "Subscriptions",
-      href: "/users/[userId]/subscriptions",
+      href: "/account/subscriptions", // Changed from /users/[userId]/subscriptions
       icon: Layers,
       description: "Manage subscriptions",
     },
     {
       name: "Incidents",
-      href: "/users/[userId]/incidents",
+      href: "/account/incidents", // Changed from /users/[userId]/incidents
       icon: Bell,
       description: "View reported issues",
     },
@@ -121,7 +121,7 @@ export default function Navbar() {
     item: UserMenuItem;
     mobile?: boolean;
   }) => {
-    const href = getUserSpecificUrl(item.href);
+    const href = item.href;
 
     // Base classes for both mobile and desktop
     const baseClasses = "flex items-center text-red-800 hover:text-red-600";

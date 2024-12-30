@@ -9,7 +9,7 @@ const noNavbarRoutes = ["/login", "/register", "/verify-phone"];
 
 // Function to check if the current path is a user profile route
 const isUserProfileRoute = (pathname: string) => {
-  return pathname.startsWith("/users/") && pathname.includes("/");
+  return pathname.startsWith("/account/") && pathname.includes("/");
 };
 
 export default function ClientNavbar() {

@@ -1,5 +1,5 @@
 {
-  "id": "5564769f-9602-4804-a12f-ea1086249ab8",
+  "id": "27c87195-a815-47de-9d39-88b218f9309b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -151,7 +151,7 @@
           "name": "state",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "country": {
           "name": "country",
@@ -169,16 +169,16 @@
           "name": "type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "longitude": {
-          "name": "longitude",
-          "type": "numeric(10, 6)",
-          "primaryKey": false,
           "notNull": true
         },
         "latitude": {
           "name": "latitude",
+          "type": "numeric(10, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
           "type": "numeric(10, 6)",
           "primaryKey": false,
           "notNull": true

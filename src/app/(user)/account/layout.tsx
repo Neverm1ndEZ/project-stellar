@@ -1,4 +1,4 @@
-// app/(user)/users/[id]/layout.tsx
+// app/(user)/account/layout.tsx
 import { Button } from "@/components/ui/button";
 import { auth } from "@/server/auth";
 import {
@@ -18,14 +18,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 
-interface UserLayoutProps {
+interface AccountLayoutProps {
   children: ReactNode;
-  params: {
-    id: string;
-  };
 }
 
-// Separate navigation items into categories for better organization
+// Navigation items for better organization
 const mainNavigationItems = [
   { name: "Home", href: "/", icon: Home },
   { name: "Products", href: "/products", icon: Store },
@@ -33,38 +30,22 @@ const mainNavigationItems = [
 ];
 
 const accountNavigationItems = [
-  { name: "Profile", href: "profile", icon: User },
-  { name: "Orders", href: "orders", icon: Package },
-  { name: "Wishlist", href: "wishlist", icon: Heart },
-  { name: "Addresses", href: "addresses", icon: MapPin },
-  { name: "Payments", href: "payments", icon: CreditCard },
-  { name: "Subscriptions", href: "subscriptions", icon: Layers },
-  { name: "Incidents", href: "incidents", icon: Bell },
+  { name: "Profile", href: "/account/profile", icon: User },
+  { name: "Orders", href: "/account/orders", icon: Package },
+  { name: "Wishlist", href: "/account/wishlist", icon: Heart },
+  { name: "Addresses", href: "/account/addresses", icon: MapPin },
+  { name: "Payments", href: "/account/payments", icon: CreditCard },
+  { name: "Subscriptions", href: "/account/subscriptions", icon: Layers },
+  { name: "Incidents", href: "/account/incidents", icon: Bell },
 ];
 
-export default async function UserLayout({
-  children,
-  params,
-}: UserLayoutProps) {
+export default async function AccountLayout({ children }: AccountLayoutProps) {
   const session = await auth();
 
-  // If not logged in, redirect to login
-  if (!session) {
-    redirect("/login");
+  // Protect all account routes
+  if (!session?.user) {
+    redirect("/login?from=/account");
   }
-
-  // If trying to access different user's profile
-  if (session.user.id !== params.id) {
-    redirect("/");
-  }
-
-  // Helper function to determine if a link should use the user's ID in the path
-  const getHref = (item: { href: string }) => {
-    // If the href starts with /, it's an absolute path
-    return item.href.startsWith("/")
-      ? item.href
-      : `/users/${params.id}/${item.href}`;
-  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -113,7 +94,7 @@ export default async function UserLayout({
               {accountNavigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link key={item.href} href={getHref(item)}>
+                  <Link key={item.href} href={item.href}>
                     <Button
                       variant="ghost"
                       className="w-full justify-start hover:bg-red-50 hover:text-red-600"
