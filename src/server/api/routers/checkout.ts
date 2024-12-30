@@ -15,6 +15,7 @@ import {
 } from "@/server/db/schema";
 
 // Validation schemas
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const paymentMethodSchema = z.enum(["card", "upi", "cod"]);
 
 const addressSchema = z.object({
@@ -77,7 +78,7 @@ export const checkoutRouter = createTRPCRouter({
       }
 
       // Calculate totals
-      const subtotal = cart.items.reduce((sum, item) => sum + item.price, 0);
+      const subtotal = cart.items.reduce((sum, item) => sum + Number(item.product.sellingPrice), 0);
       const shipping = subtotal > 500 ? 0 : 50;
       const tax = subtotal * 0.18;
       const total = subtotal + shipping + tax;
@@ -137,7 +138,7 @@ export const checkoutRouter = createTRPCRouter({
 
           // 2. Calculate totals
           const subtotal = cart.items.reduce(
-            (sum, item) => sum + item.price,
+            (sum, item) => sum + item.quantity * Number(item.product.sellingPrice),
             0,
           );
           const shipping = subtotal > 500 ? 0 : 50;
@@ -161,7 +162,7 @@ export const checkoutRouter = createTRPCRouter({
           // 4. Create order items
           await tx.insert(orderItems).values(
             cart.items.map((item) => ({
-              orderId: order.id,
+              orderId: order!.id,
               productId: item.productId,
               variantId: item.variantId,
               quantity: item.quantity,
@@ -204,6 +205,13 @@ export const checkoutRouter = createTRPCRouter({
           }
 
           // 7. Record payment
+          if (!order) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to create order",
+            });
+          }
+
           const [payment] = await tx
             .insert(payments)
             .values({
@@ -213,6 +221,13 @@ export const checkoutRouter = createTRPCRouter({
               paymentDate: new Date(),
             })
             .returning();
+
+          if (!payment) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to create payment record",
+            });
+          }
 
           // 8. Update order status
           await tx
