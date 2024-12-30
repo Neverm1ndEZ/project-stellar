@@ -394,11 +394,11 @@ export const orderRouter = createTRPCRouter({
             orderId: newOrder.id,
             productId: product.productId,
             quantity: product.quantity,
-            price: product.totalPrice / product.quantity, // Store unit price
+            price: (product.totalPrice / product.quantity).toString(), // Store unit price as string
           })),
         );
 
-        return order;
+        return orders;
       } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -446,7 +446,7 @@ export const orderRouter = createTRPCRouter({
               },
             },
             shippingAddress: true,
-            payment: true,
+            // payment: true,
           },
         });
 
