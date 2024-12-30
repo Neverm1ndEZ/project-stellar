@@ -47,7 +47,7 @@ export function CheckoutSteps({
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full",
                     {
-                      "bg-brand-600 text-white": isCurrent,
+                      "bg-gray-600 text-white": isCurrent,
                       "bg-green-500 text-white": isCompleted,
                       "bg-gray-200 text-gray-700": !isCompleted && !isCurrent,
                     },

@@ -112,22 +112,20 @@ export function useCheckout() {
     const stepErrors: Record<string, string> = {};
 
     if (state.paymentMethod === "card") {
-      if (!state.paymentDetails.cardNumber.match(/^\d{16}$/)) {
+      if (!(/^\d{16}$/.exec(state.paymentDetails.cardNumber))) {
         stepErrors.cardNumber = "Please enter a valid 16-digit card number";
       }
       if (
-        !state.paymentDetails.expiryDate.match(/^(0[1-9]|1[0-2])\/([0-9]{2})$/)
+        !(/^(0[1-9]|1[0-2])\/([0-9]{2})$/.exec(state.paymentDetails.expiryDate))
       ) {
         stepErrors.expiryDate = "Please enter a valid expiry date (MM/YY)";
       }
-      if (!state.paymentDetails.cvv.match(/^\d{3}$/)) {
+      if (!(/^\d{3}$/.exec(state.paymentDetails.cvv))) {
         stepErrors.cvv = "Please enter a valid 3-digit CVV";
       }
     } else if (state.paymentMethod === "upi") {
       if (
-        !state.paymentDetails.upiId.match(
-          /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/,
-        )
+        !(/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.exec(state.paymentDetails.upiId))
       ) {
         stepErrors.upiId = "Please enter a valid UPI ID";
       }
