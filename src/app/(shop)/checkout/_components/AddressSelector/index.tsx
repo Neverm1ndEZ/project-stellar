@@ -25,7 +25,7 @@ export function AddressSelector({
   errors,
 }: AddressSelectorProps) {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
-  const { data: addresses, isLoading } =
+  const { data: addresses, isLoading, refetch } =
     api.address.getUserAddresses.useQuery();
 
   if (isLoading) {
@@ -51,6 +51,7 @@ export function AddressSelector({
         <NewAddressForm
           onSuccess={(addressId) => {
             setShowNewAddressForm(false);
+            void refetch();
             onSelectAddress(addressId, "shipping");
           }}
           onCancel={() => setShowNewAddressForm(false)}
