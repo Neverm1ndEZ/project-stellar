@@ -7,9 +7,9 @@ TODO:
     - [ ] getProductByCategory 
   
   - [ ] cart page + cart api integration - customer side - protected + non-protected route
-    - [ ] if (!userIsAuth) ? saveCartAtLocalStorage() : saveCartAtLocalStorage() && saveCartAtDB()
+    - [x] if (!userIsAuth) ? saveCartAtLocalStorage() : saveCartAtLocalStorage() && saveCartAtDB()
     - [ ] 
 
-  - [ ] complete checkout
+  - [x] complete checkout
 
-  - [ ] payment gateway - simulate a procedure
+  - [x] payment gateway - simulate a procedure

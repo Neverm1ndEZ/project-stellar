@@ -14,6 +14,12 @@ import {
 import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
 import type { AdapterAccount } from "@auth/core/adapters";
 
+export const userRoleEnum = pgEnum("user_role", [
+  "USER",
+  "ADMIN",
+  "SUPER_ADMIN",
+]);
+
 // First, let's define our enums
 export const orderStatus = pgEnum("order_status", [
   "PENDING",
@@ -35,7 +41,7 @@ export const users = pgTable("user", {
   phoneVerified: boolean("phone_verified").default(false),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
-  role: varchar("role", { length: 50 }).default("user"),
+  role: userRoleEnum("role").default("USER").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   lastLogin: timestamp("last_login"),
